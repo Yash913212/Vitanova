@@ -4,7 +4,7 @@
  */
 import React, { useEffect, useRef } from 'react';
 import { View, StyleSheet, Animated, Text } from 'react-native';
-import { COLORS, SHADOWS } from '../src/utils/theme';
+import { COLORS, SHADOWS } from '../utils/theme';
 
 export default function FloatingOrb({ isActive = false, size = 'medium' }) {
   // Animation hooks

@@ -7,6 +7,9 @@ import NetInfo from '@react-native-community/netinfo';
 import { supabase } from './client';
 import { getUserProfile, updateUserProfile } from '../../database/queries/profile';
 import { getUnsyncedScanHistory, markScanHistorySynced, addScanHistoryEntry, getScanHistory } from '../../database/queries/history';
+import { getUnsyncedNutritionLogs, markNutritionLogsSynced, addNutritionLog, getNutritionLogs } from '../../database/queries/nutrition';
+import { getUnsyncedHydrationLogs, markHydrationLogsSynced, addHydrationLog, getHydrationLogs } from '../../database/queries/hydration';
+import { getUnsyncedReminders, markRemindersSynced, addReminder, getReminders, updateReminder } from '../../database/queries/reminders';
 
 let isSyncing = false;
 
@@ -54,6 +57,15 @@ export async function syncData() {
 
     // --- PHASE 2: SCAN HISTORY SYNC ---
     await syncScanHistory(userId);
+
+    // --- PHASE 3: NUTRITION LOGS SYNC ---
+    await syncNutritionLogs(userId);
+
+    // --- PHASE 4: HYDRATION LOGS SYNC ---
+    await syncHydrationLogs(userId);
+
+    // --- PHASE 5: REMINDERS SYNC ---
+    await syncReminders(userId);
 
     console.log('[SyncService] Background synchronization completed successfully.');
     return true;
@@ -209,3 +221,203 @@ async function syncScanHistory(userId) {
     }
   }
 }
+
+/**
+ * Bi-directionally sync daily nutrition logs.
+ */
+async function syncNutritionLogs(userId) {
+  // 1. Push local unsynced logs
+  const unsynced = await getUnsyncedNutritionLogs();
+  if (unsynced.length > 0) {
+    console.log(`[SyncService] Found ${unsynced.length} unsynced nutrition logs. Syncing to cloud...`);
+    const rows = unsynced.map(log => ({
+      user_id: userId,
+      food_name: log.food_name,
+      calories: log.calories,
+      protein: log.protein,
+      carbs: log.carbs,
+      fats: log.fats,
+      fiber: log.fiber,
+      timestamp: log.timestamp,
+      meal_type: log.meal_type
+    }));
+
+    const { error } = await supabase
+      .from('nutrition_logs')
+      .insert(rows);
+
+    if (error) {
+      console.error('[SyncService] Failed to upload nutrition logs:', error.message);
+    } else {
+      const ids = unsynced.map(log => log.id);
+      await markNutritionLogsSynced(ids);
+      console.log(`[SyncService] Successfully synced ${ids.length} nutrition logs to cloud.`);
+    }
+  }
+
+  // 2. Pull down cloud entries
+  console.log('[SyncService] Checking for new cloud nutrition logs...');
+  const { data: cloudLogs, error } = await supabase
+    .from('nutrition_logs')
+    .select('*')
+    .eq('user_id', userId)
+    .order('timestamp', { ascending: false })
+    .limit(50);
+
+  if (error) {
+    console.error('[SyncService] Failed to pull cloud nutrition logs:', error.message);
+    return;
+  }
+
+  if (cloudLogs && cloudLogs.length > 0) {
+    const localLogs = await getNutritionLogs(100);
+    const localTimestamps = new Set(localLogs.map(l => l.timestamp));
+
+    let newInserts = 0;
+    for (const remote of cloudLogs) {
+      if (!localTimestamps.has(remote.timestamp)) {
+        await addNutritionLog({
+          food_name: remote.food_name,
+          calories: remote.calories,
+          protein: remote.protein,
+          carbs: remote.carbs,
+          fats: remote.fats,
+          fiber: remote.fiber,
+          timestamp: remote.timestamp,
+          meal_type: remote.meal_type,
+          synced: 1
+        });
+        newInserts++;
+      }
+    }
+    if (newInserts > 0) {
+      console.log(`[SyncService] Downloaded ${newInserts} new nutrition logs from cloud.`);
+    }
+  }
+}
+
+/**
+ * Bi-directionally sync daily hydration logs.
+ */
+async function syncHydrationLogs(userId) {
+  // 1. Push local unsynced logs
+  const unsynced = await getUnsyncedHydrationLogs();
+  if (unsynced.length > 0) {
+    console.log(`[SyncService] Found ${unsynced.length} unsynced hydration logs. Syncing to cloud...`);
+    const rows = unsynced.map(log => ({
+      user_id: userId,
+      amount_ml: log.amount_ml,
+      timestamp: log.timestamp
+    }));
+
+    const { error } = await supabase
+      .from('hydration_logs')
+      .insert(rows);
+
+    if (error) {
+      console.error('[SyncService] Failed to upload hydration logs:', error.message);
+    } else {
+      const ids = unsynced.map(log => log.id);
+      await markHydrationLogsSynced(ids);
+      console.log(`[SyncService] Successfully synced ${ids.length} hydration logs to cloud.`);
+    }
+  }
+
+  // 2. Pull down cloud entries
+  console.log('[SyncService] Checking for new cloud hydration logs...');
+  const { data: cloudLogs, error } = await supabase
+    .from('hydration_logs')
+    .select('*')
+    .eq('user_id', userId)
+    .order('timestamp', { ascending: false })
+    .limit(50);
+
+  if (error) {
+    console.error('[SyncService] Failed to pull cloud hydration logs:', error.message);
+    return;
+  }
+
+  if (cloudLogs && cloudLogs.length > 0) {
+    const localLogs = await getHydrationLogs(100);
+    const localTimestamps = new Set(localLogs.map(l => l.timestamp));
+
+    let newInserts = 0;
+    for (const remote of cloudLogs) {
+      if (!localTimestamps.has(remote.timestamp)) {
+        await addHydrationLog(remote.amount_ml, remote.timestamp, 1);
+        newInserts++;
+      }
+    }
+    if (newInserts > 0) {
+      console.log(`[SyncService] Downloaded ${newInserts} new hydration logs from cloud.`);
+    }
+  }
+}
+
+/**
+ * Bi-directionally sync reminders.
+ */
+async function syncReminders(userId) {
+  // 1. Push local unsynced reminders
+  const unsynced = await getUnsyncedReminders();
+  if (unsynced.length > 0) {
+    console.log(`[SyncService] Found ${unsynced.length} unsynced reminders. Syncing to cloud...`);
+    for (const rem of unsynced) {
+      const { error } = await supabase
+        .from('reminders')
+        .upsert({
+          user_id: userId,
+          title: rem.title,
+          time: rem.time,
+          type: rem.type,
+          enabled: rem.enabled === 1,
+          updated_at: new Date().toISOString()
+        }, { onConflict: 'user_id,title,time' });
+
+      if (error) {
+        console.error('[SyncService] Failed to upsert reminder to cloud:', error.message);
+      } else {
+        await markRemindersSynced([rem.id]);
+      }
+    }
+    console.log('[SyncService] Local reminders successfully synced.');
+  }
+
+  // 2. Download cloud entries
+  console.log('[SyncService] Checking for cloud reminders...');
+  const { data: cloudRems, error } = await supabase
+    .from('reminders')
+    .select('*')
+    .eq('user_id', userId);
+
+  if (error) {
+    console.error('[SyncService] Failed to pull cloud reminders:', error.message);
+    return;
+  }
+
+  if (cloudRems && cloudRems.length > 0) {
+    const localRems = await getReminders();
+    
+    for (const remote of cloudRems) {
+      const match = localRems.find(r => r.title === remote.title && r.time === remote.time);
+      if (!match) {
+        await addReminder({
+          title: remote.title,
+          time: remote.time,
+          type: remote.type,
+          enabled: remote.enabled ? 1 : 0,
+          synced: 1
+        });
+      } else {
+        const remoteEnabledInt = remote.enabled ? 1 : 0;
+        if (match.enabled !== remoteEnabledInt && match.synced === 1) {
+          await updateReminder(match.id, {
+            enabled: remoteEnabledInt,
+            synced: 1
+          });
+        }
+      }
+    }
+  }
+}
+

@@ -151,8 +151,8 @@ export default function ScanScreen() {
     ])).start();
   }, []);
 
-  const showResults = useCallback((itemName, conf, summary, uri) => {
-    const nutrition = getNutrition(itemName);
+  const showResults = useCallback(async (itemName, conf, summary, uri) => {
+    const nutrition = await getNutrition(itemName);
     setNutritionData(nutrition);
 
     let g = null;
@@ -190,7 +190,7 @@ export default function ScanScreen() {
       const base64 = await imageToBase64(uri);
       const result = await recognizeFood(base64);
       setScanResult(result);
-      showResults(result.item, result.confidence, result.summary, uri);
+      await showResults(result.item, result.confidence, result.summary, uri);
     } catch (e) {
       // If offline or network error, offer manual input
       if (e.code === 'OFFLINE_FALLBACK' || e.code === 'NETWORK_ERROR' || e.code === 'TIMEOUT' || e.code === 'CONFIG_ERROR') {
@@ -204,11 +204,11 @@ export default function ScanScreen() {
     }
   }, [recognizeFood, showResults]);
 
-  const handleOfflineLookup = useCallback(() => {
+  const handleOfflineLookup = useCallback(async () => {
     const name = manualInput.trim();
     if (!name) return;
 
-    const nutrition = getNutrition(name);
+    const nutrition = await getNutrition(name);
     if (nutrition) {
       setScanResult({ item: name, confidence: 1, summary: `Offline lookup: ${nutrition.name}` });
       setNutritionData(nutrition);
@@ -294,10 +294,10 @@ export default function ScanScreen() {
   const [foodSearch, setFoodSearch] = useState('');
   const [foodSearchResult, setFoodSearchResult] = useState(null);
 
-  const handleFoodSearch = useCallback(() => {
+  const handleFoodSearch = useCallback(async () => {
     const name = foodSearch.trim();
     if (!name) return;
-    const nutrition = getNutrition(name);
+    const nutrition = await getNutrition(name);
     if (nutrition) {
       const g = getGuidance(nutrition, profile);
       setFoodSearchResult({ nutrition, guidance: g });

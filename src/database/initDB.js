@@ -85,6 +85,42 @@ export async function initializeDatabase() {
       );
 
       CREATE INDEX IF NOT EXISTS idx_cache_query ON ai_cache (query);
+
+      -- 6. Nutrition Daily Logs Table
+      CREATE TABLE IF NOT EXISTS nutrition_logs (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        food_name TEXT NOT NULL,
+        calories INTEGER NOT NULL,
+        protein REAL NOT NULL,
+        carbs REAL NOT NULL,
+        fats REAL NOT NULL,
+        fiber REAL NOT NULL,
+        timestamp TEXT NOT NULL, -- ISO Date string
+        meal_type TEXT NOT NULL, -- 'breakfast', 'lunch', 'dinner', 'snack'
+        synced INTEGER DEFAULT 0
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_nutrition_timestamp ON nutrition_logs (timestamp DESC);
+
+      -- 7. Hydration Daily Logs Table
+      CREATE TABLE IF NOT EXISTS hydration_logs (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        amount_ml INTEGER NOT NULL,
+        timestamp TEXT NOT NULL, -- ISO Date string
+        synced INTEGER DEFAULT 0
+      );
+
+      CREATE INDEX IF NOT EXISTS idx_hydration_timestamp ON hydration_logs (timestamp DESC);
+
+      -- 8. Reminders Table
+      CREATE TABLE IF NOT EXISTS reminders (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        title TEXT NOT NULL,
+        time TEXT NOT NULL, -- 'HH:MM'
+        type TEXT NOT NULL, -- 'water', 'meal', 'workout'
+        enabled INTEGER DEFAULT 1, -- 0 or 1
+        synced INTEGER DEFAULT 0
+      );
     `);
 
 
@@ -99,6 +135,20 @@ export async function initializeDatabase() {
     try {
       await executeRaw('ALTER TABLE user_profile ADD COLUMN synced INTEGER DEFAULT 0;');
       console.log('[SQLite Migration] Added synced column to user_profile');
+    } catch (e) {
+      // Column already exists
+    }
+
+    try {
+      await executeRaw('ALTER TABLE settings ADD COLUMN has_onboarded INTEGER DEFAULT 0;');
+      console.log('[SQLite Migration] Added has_onboarded column to settings');
+    } catch (e) {
+      // Column already exists
+    }
+
+    try {
+      await executeRaw('ALTER TABLE settings ADD COLUMN has_configured_profile INTEGER DEFAULT 0;');
+      console.log('[SQLite Migration] Added has_configured_profile column to settings');
     } catch (e) {
       // Column already exists
     }

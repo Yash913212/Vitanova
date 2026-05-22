@@ -9,7 +9,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { Slot, useRouter, useSegments } from 'expo-router';
 import { View, ActivityIndicator, StyleSheet } from 'react-native';
 import { AuthProvider, useAuth } from '../src/providers/AuthProvider';
-import { SettingsProvider } from '../src/providers/SettingsProvider';
+import { SettingsProvider, useSettings } from '../src/providers/SettingsProvider';
 import { ProfileProvider } from '../src/providers/ProfileProvider';
 import { HistoryProvider } from '../src/providers/HistoryProvider';
 import { NutritionProvider } from '../src/providers/NutritionProvider';
@@ -24,25 +24,52 @@ import { seedDatabase } from '../src/database/seedFoods.js';
 
 function AuthGate() {
   const { isAuthenticated, isLoading } = useAuth();
+  const { settings, loaded: settingsLoaded } = useSettings();
   const { isDark } = useAppTheme();
   const segments = useSegments();
   const router = useRouter();
 
   useEffect(() => {
-    if (isLoading) return;
+    if (isLoading || !settingsLoaded) return;
 
-    const inAuthGroup = segments[0] === 'login' || segments[0] === 'signup';
+    const currentRoute = segments[0];
+    const isWelcome = currentRoute === 'welcome';
+    const isLogin = currentRoute === 'login';
+    const isSignup = currentRoute === 'signup';
+    const isForgotPassword = currentRoute === 'forgot-password';
+    const isProfileSetup = currentRoute === 'profile-setup';
 
-    if (!isAuthenticated && !inAuthGroup) {
-      // Not logged in, redirect to login
-      router.replace('/login');
-    } else if (isAuthenticated && inAuthGroup) {
-      // Already logged in, redirect to app
-      router.replace('/(tabs)');
+    // 1. Welcome Onboarding check
+    if (!settings.has_onboarded) {
+      if (!isWelcome) {
+        router.replace('/welcome');
+      }
+      return;
     }
-  }, [isAuthenticated, isLoading, segments]);
 
-  if (isLoading) {
+    // 2. Authentication check
+    if (!isAuthenticated) {
+      const inAuthGroup = isLogin || isSignup || isForgotPassword || isWelcome;
+      if (!inAuthGroup) {
+        router.replace('/login');
+      }
+    } else {
+      // 3. Physical profile configuration check
+      if (!settings.has_configured_profile) {
+        if (!isProfileSetup) {
+          router.replace('/profile-setup');
+        }
+      } else {
+        // Authenticated and set up: bounce away from login/onboarding back to tabs
+        const inAuthGroup = isLogin || isSignup || isForgotPassword || isWelcome || isProfileSetup;
+        if (inAuthGroup) {
+          router.replace('/(tabs)');
+        }
+      }
+    }
+  }, [isAuthenticated, isLoading, settings, settingsLoaded, segments]);
+
+  if (isLoading || !settingsLoaded) {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color={COLORS.primary} />

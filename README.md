@@ -16,14 +16,22 @@
 - **AI Vision Recognition** — OpenRouter vision models identify food items instantly
 - **Auto-Crop & Analyze** — Cropping triggers analysis automatically (no extra button)
 - **Object Description** — Non-food items get a detailed AI description instead of "unknown"
+- **Dual Async Verification** — Automatically synchronizes camera and query lookups against local databases for maximum macro accuracy
 
-### ✍️ Describe a Food
+### 🧭 Sliding Welcome & Profile Setup Wizard
+- **Sliding Welcome Onboarding** — A high-converting swipable carousel introduction describing key platform capabilities.
+- **Physical Metrics Configurator** — Dynamic 3-step physical parameters wizard configuring Age, Weight, Height, and Diet preferences.
+- **Dynamic BMI Classifications** — Performs instant WHO-compliant Body Mass Index calculations, styling categories with color flags based on health bounds.
+- **Nutrition Thresholds** — Establishes baseline targets (Calorie and Protein limits) derived from configured physical metrics.
+
+### ✍️ Offline Food Explorer
 - Type any food name on the home screen to get instant nutrition data
 - Works **fully offline** — no internet required
 - Shows calories, macros, vitamins, benefits, and personalized recommendations
 
-### 🤖 Multilingual AI Assistant
+### 🤖 Animated AI Assistant with Glassmorphic Floating Orb
 - Conversational AI chatbot for nutrition, diet, and health questions
+- **Glassmorphic Breathing Floating Orb** — Continuous parallel scaling, floating, and glowing loops reacting to conversational AI states.
 - **3 languages supported**: English 🇬🇧, Hindi 🇮🇳, Telugu 🇮🇳
 - Animated language switcher with spring transitions
 - Voice waveform visualization during speech
@@ -37,21 +45,15 @@
 - Searchable food explorer with category filters (Fruit, Vegetable, Grain, Protein, Dairy, Nut)
 - Macro breakdown pills (Protein, Carbs, Fats, Fiber)
 
-### 📋 Scan History & Cloud Sync
-- All scans saved with timestamps, images, and nutrition snapshots in **SQLite**
-- Persistent, reliable storage with automatic background cloud synchronization to **Supabase**
-- Double-click collision protection and automatic cascade deletions across local and remote databases
+### 📊 Real-Time Daily Tracker Widgets
+- **Calorie & Macro Progress Rings** — Animated progress rings comparing real-time SQLite intakes against user baseline goal thresholds.
+- **Glassmorphic Hydration Tracker** — Interactive logs card with +250ml / +500ml quick-add buttons and long-press clear triggers.
+- **Health Streak Engine** — Evaluates consecutive food and hydration metrics, returning motivational medical quotes dynamically.
 
-### ⚙️ Settings & Profile
-- Fitness goal, diet preference, and preferred language stored in SQLite with default fallbacks
-- Auto TTS toggle, speech language selection, and network offline mode preferences
-- Profile-driven AI recommendations with real-time bi-directional Supabase sync
-
-### 🔊 Voice Interaction
-- Text-to-Speech using Expo Speech
-- Multilingual TTS (English, Hindi, Telugu)
-- Auto-speak scan results (configurable)
-- Voice waveform animations during playback
+### 📋 Bi-directional Cloud Sync Queue
+- **Background Synchronization Engine** — Checks active sessions and network connectivity to push offline SQLite updates to Supabase without disrupting the UX.
+- **Dynamic Multi-Table Queue** — Seamlessly backs up profile metrics, scan records, ingested macros logs, water logs, and custom schedules to Supabase.
+- **Cascade Deletion Sync** — Deleting local logs issues immediate delete calls to the Supabase database to maintain data parity.
 
 ### 📡 Offline-First Relational Engine
 - **162 relational records** (42 food profiles + 12 health topics in 3 languages) seeded transactional-first on boot
@@ -63,18 +65,16 @@
 
 ### 🔬 RAG Nutrition Intelligence (Retrieval-Augmented Generation)
 - **Memory-Resident Vector Store** — Custom TF-IDF similarity database indexes key SQLite health entries dynamically on startup.
-- **Dual Matching Search Fallback** — Combines direct keyword exact matches with vector space cosine similarities to capture user intent.
+- **Exact Cosine Confidence** — Cosine similarity algorithms calculate and return absolute confidence intervals (e.g. 0% to 100%).
+- **Verification Citations** — Matches USDA FoodData Central and Harvard T.H. Chan guidelines to RAG retrievals, rendering verified health citation badges.
 - **Multilingual Tokenizer Engine** — Full tokenization support including English, Hindi (`\u0900-\u097F`), and Telugu (`\u0C00-\u0C7F`) Unicode character sets.
 - **Target-Tuned Prompt Orchestration** — Dynamically injects physical attributes, user fitness targets (e.g. calories for `fat_loss`, post-workout protein for `muscle_gain`), and strict dietary preference boundaries (e.g. `vegan` egg-free or `vegetarian` meat-free compliance).
-- **RAG-Powered Detail Widgets** — Renders verified `🛡️ Verified Source` bubble badges, caution health banners, comprehensive verified insights, and scrollable related foods carousels.
 
 ---
 
-### ☁️ Supabase Cloud Synchronization & Auth
-- **Real-Time Authentication** — Production-ready accounts (Sign Up, Log In, Log Out) using the Supabase Auth SDK and persistent sessions via AsyncStorage.
-- **Bi-directional Profile Sync** — Automatically pushes physical metrics changes online, and pulls cloud profile values to resolve multi-device sessions.
-- **Batch Scan Sync** — Monitors connectivity and uploads local scans to Supabase in lightweight batches of 10 to optimize network usage.
-- **Cascade Remote Deletions** — Deleting local logs cascades deletes to the Supabase database using unique record timestamps.
+### ☁️ Supabase Cloud Integration & Auth
+- **Real-Time Authentication** — Production-ready accounts (Sign Up, Log In, Log Out, Recovery) using the Supabase Auth SDK and persistent sessions via AsyncStorage.
+- **No Next.js / SSR Constraints** — Strict Expo compatibility utilizing native async storage structures and environment variables (`EXPO_PUBLIC_`).
 
 ---
 

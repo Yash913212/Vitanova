@@ -1,10 +1,10 @@
 /**
- * NutriVision AI — Knowledge Provider
+ * NutriVision AI — Knowledge Provider (SQLite Powered)
  * Global React context provider for managing retrieval states and scanned food memory.
  */
 
 import React, { createContext, useContext, useState, useCallback } from 'react';
-import { retrieveKnowledge } from '../services/rag/retriever';
+import { retrieveKnowledge } from '../services/rag/retriever.js';
 
 const KnowledgeContext = createContext(null);
 
@@ -13,12 +13,12 @@ export function KnowledgeProvider({ children }) {
   const [lastRetrieval, setLastRetrieval] = useState([]);
 
   /**
-   * Query the local RAG knowledge base.
+   * Query the local SQLite RAG knowledge base.
    * Saves retrieval in state and returns the localized documents.
    */
-  const queryKnowledge = useCallback((query, options = {}) => {
+  const queryKnowledge = useCallback(async (query, options = {}) => {
     try {
-      const results = retrieveKnowledge(query, options);
+      const results = await retrieveKnowledge(query, options);
       setLastRetrieval(results);
       return results;
     } catch (err) {

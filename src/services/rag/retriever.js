@@ -1,10 +1,9 @@
 /**
- * NutriVision AI — RAG Retriever
- * Fetches relevant knowledge base articles, applies localizations, and expands relations.
+ * NutriVision AI — RAG Retriever (SQLite Powered)
+ * Fetches relevant knowledge base articles, applies localizations, and expands relations from SQLite.
  */
 
-import { similaritySearch, getDocumentById } from './vectorStore.js';
-import { KNOWLEDGE_BASE } from './knowledgeBase.js';
+import { initializeVectorStore, similaritySearch, getDocumentById, getCorpus } from './vectorStore.js';
 import { tokenize } from './embeddings.js';
 
 /**
@@ -12,23 +11,27 @@ import { tokenize } from './embeddings.js';
  * 
  * @param {string} query - user's text query
  * @param {Object} options - { language: 'en'|'hi'|'te', category: string, topK: number }
- * @returns {Array<Object>} localized matching documents with scores and expanded related items.
+ * @returns {Promise<Array<Object>>} localized matching documents with scores and expanded related items.
  */
-export function retrieveKnowledge(query, options = {}) {
+export async function retrieveKnowledge(query, options = {}) {
   const language = options.language || 'en';
   const topK = options.topK || 3;
   const category = options.category || null;
 
   if (!query || query.trim() === '') return [];
 
+  // Ensure Vector Store is initialized asynchronously from SQLite
+  await initializeVectorStore();
+
   const normalizedQuery = query.toLowerCase().trim();
   const queryTokens = tokenize(normalizedQuery);
 
   let matches = [];
+  const corpus = getCorpus();
 
   // 1. Direct Keyword Matching (Highest Priority)
   // Check if any keyword in the query is an exact ID match or appears in a title
-  for (const item of KNOWLEDGE_BASE) {
+  for (const item of corpus) {
     let isDirectMatch = false;
 
     // Check ID match

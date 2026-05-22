@@ -1,9 +1,9 @@
 /**
- * NutriVision AI — Settings Provider
+ * NutriVision AI — Settings Provider (SQLite Powered)
  */
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import { getData, setData } from '../services/storageService';
-import { STORAGE_KEYS, DEFAULT_SETTINGS } from '../utils/constants';
+import { getSettings, updateSettings } from '../database/queries/settings.js';
+import { DEFAULT_SETTINGS } from '../utils/constants';
 
 const SettingsContext = createContext(null);
 
@@ -11,25 +11,32 @@ export function SettingsProvider({ children }) {
   const [settings, setSettings] = useState(DEFAULT_SETTINGS);
   const [loaded, setLoaded] = useState(false);
 
+  // Sync settings state with SQLite on startup
   useEffect(() => {
     (async () => {
-      const saved = await getData(STORAGE_KEYS.SETTINGS);
-      if (saved) setSettings({ ...DEFAULT_SETTINGS, ...saved });
+      const saved = await getSettings();
+      if (saved) setSettings(saved);
       setLoaded(true);
     })();
   }, []);
 
   const updateSetting = useCallback(async (key, value) => {
-    setSettings((prev) => {
-      const next = { ...prev, [key]: value };
-      setData(STORAGE_KEYS.SETTINGS, next);
-      return next;
-    });
+    const success = await updateSettings({ [key]: value });
+    if (success) {
+      const next = await getSettings();
+      setSettings(next);
+      return true;
+    }
+    return false;
   }, []);
 
   const resetSettings = useCallback(async () => {
-    setSettings(DEFAULT_SETTINGS);
-    await setData(STORAGE_KEYS.SETTINGS, DEFAULT_SETTINGS);
+    const success = await updateSettings(DEFAULT_SETTINGS);
+    if (success) {
+      setSettings(DEFAULT_SETTINGS);
+      return true;
+    }
+    return false;
   }, []);
 
   return (

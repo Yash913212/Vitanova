@@ -1,15 +1,16 @@
 /**
- * NutriVision AI — Nutrition Provider
+ * NutriVision AI — Nutrition Provider (SQLite Powered)
  */
 import React, { createContext, useContext, useCallback } from 'react';
-import { lookupNutrition, searchFoods, getAllFoods } from '../services/nutritionService';
-import { generateGuidance, answerQuestion } from '../services/guidanceService';
+import { lookupNutrition, searchFoods, getAllFoods } from '../services/nutritionService.js';
+import { generateGuidance, answerQuestion } from '../services/guidanceService.js';
 
 const NutritionContext = createContext(null);
 
 export function NutritionProvider({ children }) {
-  const getNutrition = useCallback((itemName) => {
-    return lookupNutrition(itemName);
+  // Direct async SQLite lookups
+  const getNutrition = useCallback(async (itemName, lang = 'en') => {
+    return lookupNutrition(itemName, lang);
   }, []);
 
   const getGuidance = useCallback((nutritionData, profile) => {
@@ -20,13 +21,23 @@ export function NutritionProvider({ children }) {
     return answerQuestion(question, nutritionData, profile);
   }, []);
 
-  const search = useCallback((query) => {
-    return searchFoods(query);
+  const search = useCallback(async (query, lang = 'en') => {
+    return searchFoods(query, lang);
+  }, []);
+
+  const fetchAll = useCallback(async (lang = 'en') => {
+    return getAllFoods(lang);
   }, []);
 
   return (
     <NutritionContext.Provider
-      value={{ getNutrition, getGuidance, askQuestion, searchFoods: search, getAllFoods }}
+      value={{ 
+        getNutrition, 
+        getGuidance, 
+        askQuestion, 
+        searchFoods: search, 
+        getAllFoods: fetchAll 
+      }}
     >
       {children}
     </NutritionContext.Provider>

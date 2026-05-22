@@ -1,57 +1,65 @@
 /**
- * NutriVision AI — Nutrition Lookup Service
+ * NutriVision AI — Nutrition Lookup Service (SQLite Powered)
  */
-import NUTRITION_DB from '../data/nutritionDB';
+import { getFoodById, getAllFoods as sqliteGetAllFoods } from '../database/queries/foods.js';
 import { fuzzyMatch } from '../utils/helpers';
 
 /**
  * Look up nutrition data for a food item by name.
- * Uses fuzzy matching to find the best match.
+ * Uses SQLite records and applies fuzzy matching.
+ * @param {string} itemName - Scanned or queried name
+ * @param {string} lang - Preferred language ('en', 'hi', 'te')
  */
-export function lookupNutrition(itemName) {
+export async function lookupNutrition(itemName, lang = 'en') {
   if (!itemName) return null;
 
   const query = itemName.toLowerCase().trim();
 
-  // Direct key match
+  // 1. Direct key match (replace spaces with underscores to check standard ID formats)
   const directKey = query.replace(/\s+/g, '_');
-  if (NUTRITION_DB[directKey]) {
-    return { ...NUTRITION_DB[directKey], matchScore: 1 };
+  const exactDoc = await getFoodById(directKey, lang);
+  if (exactDoc) {
+    return { ...exactDoc, matchScore: 1 };
   }
 
-  // Fuzzy search across all entries
+  // 2. Fuzzy search across all SQLite food records
+  const allFoods = await sqliteGetAllFoods(lang);
   let bestMatch = null;
   let bestScore = 0;
 
-  for (const [key, data] of Object.entries(NUTRITION_DB)) {
-    const nameScore = fuzzyMatch(query, data.name);
-    const keyScore = fuzzyMatch(query, key);
-    const score = Math.max(nameScore, keyScore);
+  for (const food of allFoods) {
+    const nameScore = fuzzyMatch(query, food.name);
+    const idScore = fuzzyMatch(query, food.id);
+    const score = Math.max(nameScore, idScore);
 
     if (score > bestScore) {
       bestScore = score;
-      bestMatch = { ...data, matchScore: score };
+      bestMatch = { ...food, matchScore: score };
     }
   }
 
-  // Only return if match is reasonable
+  // Return if similarity matches our threshold
   return bestScore >= 0.3 ? bestMatch : null;
 }
 
 /**
- * Get all food items in the database.
+ * Get all food items in the active database language.
+ * @param {string} lang
  */
-export function getAllFoods() {
-  return Object.values(NUTRITION_DB);
+export async function getAllFoods(lang = 'en') {
+  return sqliteGetAllFoods(lang);
 }
 
 /**
- * Search foods by query.
+ * Search foods by query over SQLite records.
+ * @param {string} query
+ * @param {string} lang
  */
-export function searchFoods(query) {
-  if (!query) return getAllFoods();
+export async function searchFoods(query, lang = 'en') {
+  const allFoods = await sqliteGetAllFoods(lang);
+  if (!query) return allFoods;
 
-  return Object.values(NUTRITION_DB)
+  return allFoods
     .map((food) => ({
       ...food,
       matchScore: Math.max(

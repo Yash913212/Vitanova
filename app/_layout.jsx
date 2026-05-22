@@ -19,6 +19,9 @@ import { COLORS } from '../src/utils/theme';
 import { useFonts, Poppins_400Regular, Poppins_500Medium, Poppins_600SemiBold, Poppins_700Bold } from '@expo-google-fonts/poppins';
 import { useAppTheme } from '../src/hooks/useAppTheme';
 
+import { initializeDatabase } from '../src/database/initDB.js';
+import { seedDatabase } from '../src/database/seedFoods.js';
+
 function AuthGate() {
   const { isAuthenticated, isLoading } = useAuth();
   const { isDark } = useAppTheme();
@@ -63,7 +66,22 @@ export default function RootLayout() {
     Poppins_700Bold,
   });
 
-  if (!fontsLoaded) {
+  const [dbReady, setDbReady] = React.useState(false);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        await initializeDatabase();
+        await seedDatabase();
+        setDbReady(true);
+      } catch (err) {
+        console.error('[RootLayout] Database bootstrap failed:', err);
+        setDbReady(true); // Don't block user permanently
+      }
+    })();
+  }, []);
+
+  if (!fontsLoaded || !dbReady) {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color={COLORS.primary} />

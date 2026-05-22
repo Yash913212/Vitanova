@@ -37,14 +37,15 @@
 - Searchable food explorer with category filters (Fruit, Vegetable, Grain, Protein, Dairy, Nut)
 - Macro breakdown pills (Protein, Carbs, Fats, Fiber)
 
-### 📋 Scan History
-- All scans saved with timestamps, images, and nutrition snapshots
-- Persistent storage via AsyncStorage
+### 📋 Scan History & Cloud Sync
+- All scans saved with timestamps, images, and nutrition snapshots in **SQLite**
+- Persistent, reliable storage with automatic background cloud synchronization to **Supabase**
+- Double-click collision protection and automatic cascade deletions across local and remote databases
 
 ### ⚙️ Settings & Profile
-- Fitness goal, diet preference, allergy configuration
-- Auto TTS toggle, language selection
-- Profile-driven AI recommendations
+- Fitness goal, diet preference, and preferred language stored in SQLite with default fallbacks
+- Auto TTS toggle, speech language selection, and network offline mode preferences
+- Profile-driven AI recommendations with real-time bi-directional Supabase sync
 
 ### 🔊 Voice Interaction
 - Text-to-Speech using Expo Speech
@@ -52,20 +53,28 @@
 - Auto-speak scan results (configurable)
 - Voice waveform animations during playback
 
-### 📡 Offline-First Architecture
-- 42-item local nutrition database with full macro/vitamin data
-- Rule-based guidance engine for offline diet advice
-- Manual food lookup when AI is unavailable
-- Automatic online/offline detection with graceful fallback
+### 📡 Offline-First Relational Engine
+- **162 relational records** (42 food profiles + 12 health topics in 3 languages) seeded transactional-first on boot
+- Fully relational local **SQLite** storage (5 tables) providing sub-millisecond query execution
+- Dynamic RAG vector indexing operating directly over SQLite database rows
+- Graceful offline fallback with local rule-based systems when disconnected
 
 ---
 
 ### 🔬 RAG Nutrition Intelligence (Retrieval-Augmented Generation)
-- **Memory-Resident Vector Store** — Custom TF-IDF similarity database indexes key health entries on startup in milliseconds.
+- **Memory-Resident Vector Store** — Custom TF-IDF similarity database indexes key SQLite health entries dynamically on startup.
 - **Dual Matching Search Fallback** — Combines direct keyword exact matches with vector space cosine similarities to capture user intent.
 - **Multilingual Tokenizer Engine** — Full tokenization support including English, Hindi (`\u0900-\u097F`), and Telugu (`\u0C00-\u0C7F`) Unicode character sets.
 - **Target-Tuned Prompt Orchestration** — Dynamically injects physical attributes, user fitness targets (e.g. calories for `fat_loss`, post-workout protein for `muscle_gain`), and strict dietary preference boundaries (e.g. `vegan` egg-free or `vegetarian` meat-free compliance).
 - **RAG-Powered Detail Widgets** — Renders verified `🛡️ Verified Source` bubble badges, caution health banners, comprehensive verified insights, and scrollable related foods carousels.
+
+---
+
+### ☁️ Supabase Cloud Synchronization & Auth
+- **Real-Time Authentication** — Production-ready accounts (Sign Up, Log In, Log Out) using the Supabase Auth SDK and persistent sessions via AsyncStorage.
+- **Bi-directional Profile Sync** — Automatically pushes physical metrics changes online, and pulls cloud profile values to resolve multi-device sessions.
+- **Batch Scan Sync** — Monitors connectivity and uploads local scans to Supabase in lightweight batches of 10 to optimize network usage.
+- **Cascade Remote Deletions** — Deleting local logs cascades deletes to the Supabase database using unique record timestamps.
 
 ---
 
@@ -74,7 +83,7 @@
 ```
 NurivAi/
 ├── app/                          # Expo Router (file-based routing)
-│   ├── _layout.jsx               # Root layout with providers
+│   ├── _layout.jsx               # Root layout with providers & database bootstrapper
 │   ├── nutrition-details.jsx     # Nutrition detail screen
 │   ├── profile.jsx               # User profile screen
 │   └── (tabs)/                   # Bottom tab navigation
@@ -102,13 +111,25 @@ NurivAi/
 │   │   ├── VoiceButton.jsx       # TTS trigger button
 │   │   └── VoiceWaveform.jsx     # Animated audio bars
 │   │
-│   ├── providers/                # 6 React Context providers
+│   ├── database/                 # 🗄️ Offline SQLite Database Layer
+│   │   ├── sqlite.js             # Async connection manager singleton
+│   │   ├── initDB.js             # Tables schema & migrations seeder
+│   │   ├── seedFoods.js          # Seeder script populating 162 records
+│   │   └── queries/              # Relational SQL controllers
+│   │       ├── foods.js          # Food searches & lookups
+│   │       ├── history.js        # Chronological scan log entries
+│   │       ├── profile.js        # Age, goal, & language preferences
+│   │       ├── settings.js       # Voice toggles & offline preferences
+│   │       └── cache.js          # AI prompt semantic cache queries
+│   │
+│   ├── providers/                # 7 React Context providers
 │   │   ├── AIProvider.jsx        # AI state + RAG routing + online/offline detection
-│   │   ├── HistoryProvider.jsx   # Scan history (AsyncStorage)
-│   │   ├── KnowledgeProvider.jsx # RAG active scanned food memory (Context)
-│   │   ├── NutritionProvider.jsx # Food lookup + guidance
-│   │   ├── ProfileProvider.jsx   # User profile (AsyncStorage)
-│   │   └── SettingsProvider.jsx  # App preferences (AsyncStorage)
+│   │   ├── AuthProvider.jsx      # Supabase cloud authentication context
+│   │   ├── HistoryProvider.jsx   # Scan history sync & state provider
+│   │   ├── KnowledgeProvider.jsx # RAG active scanned food memory context
+│   │   ├── NutritionProvider.jsx # Fuzzy food matches & lookup provider
+│   │   ├── ProfileProvider.jsx   # User profile SQLite metrics provider
+│   │   └── SettingsProvider.jsx  # App settings SQLite preferences provider
 │   │
 │   ├── services/                 # Service modules
 │   │   ├── rag/                  # 🔬 Local RAG System Suite
@@ -118,17 +139,16 @@ NurivAi/
 │   │   │   ├── ragService.js     # Hybrid online/offline orchestrator
 │   │   │   ├── retriever.js      # Dual Keyword & Semantic search algorithm
 │   │   │   └── vectorStore.js    # Memory-Resident TF-IDF vector index
+│   │   ├── supabase/             # ☁️ Supabase Cloud Core
+│   │   │   ├── client.js         # Initializer client with AsyncStorage persistence
+│   │   │   └── syncService.js    # Bi-directional background sync engine
 │   │   ├── aiService.js          # OpenRouter API (vision + chat)
 │   │   ├── guidanceService.js    # Rule-based diet guidance engine
 │   │   ├── nutritionService.js   # Fuzzy food name matching
-│   │   ├── storageService.js     # AsyncStorage wrapper
 │   │   └── voiceService.js       # Expo Speech TTS adapter
 │   │
 │   ├── hooks/
 │   │   └── useNetworkStatus.js   # NetInfo connectivity hook
-│   │
-│   ├── data/
-│   │   └── nutritionDB.js        # 42 foods with full nutrition data
 │   │
 │   └── utils/
 │       ├── config.js             # API key & model configuration
@@ -140,8 +160,8 @@ NurivAi/
 ├── babel.config.js               # Babel preset (babel-preset-expo)
 ├── index.js                      # Entry point (expo-router/entry)
 ├── package.json                  # Dependencies
-└── .env                          # API key (not committed)
-```
+└── .env                          # Environment secrets
+
 
 ---
 
@@ -257,7 +277,9 @@ Each entry includes: calories, protein, carbs, fats, fiber, vitamins, minerals, 
 ### Data & State
 | Package | Purpose |
 |---------|---------|
-| `@react-native-async-storage/async-storage` | Persistent local storage |
+| `expo-sqlite` | Local offline relational database engine |
+| `@supabase/supabase-js` | Cloud synchronization & authentication SDK |
+| `@react-native-async-storage/async-storage` | Persistent session token and local preferences caching |
 | `@react-native-community/netinfo` | Network connectivity detection |
 
 ### Navigation & UI
@@ -285,7 +307,7 @@ Each entry includes: calories, protein, carbs, fats, fiber, vitamins, minerals, 
 
 - API keys are stored in `.env` and **never committed** to version control
 - `.env` is included in `.gitignore`
-- No server-side storage — all user data stays on-device via AsyncStorage
+- Offline-first architecture: All user data stays on-device in secure **SQLite** tables with encrypted multi-device synchronization via **Supabase**.
 - OpenRouter API calls use HTTPS with proper headers
 
 ---
@@ -304,10 +326,10 @@ npx expo start --web
 
 ### Project Stats
 - **Language**: JavaScript / JSX (no TypeScript)
-- **Total Files**: ~40 source files
+- **Total Files**: ~48 source files
 - **Components**: 14 reusable components
-- **Providers**: 5 context providers
-- **Services**: 5 service modules
+- **Providers**: 7 context providers
+- **Services**: 7 service modules
 
 ---
 

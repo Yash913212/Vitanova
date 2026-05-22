@@ -1,9 +1,9 @@
 /**
- * NutriVision AI — RAG Vector Store
- * Memory-resident vector store and similarity index for nutrition intelligence.
+ * NutriVision AI — RAG Vector Store (SQLite Powered)
+ * Memory-resident vector store and similarity index loaded dynamically from SQLite.
  */
 
-import { KNOWLEDGE_BASE } from './knowledgeBase.js';
+import { getAll } from '../../database/sqlite.js';
 import { tokenize, computeTF, cosineSimilarity, createEmbeddingVector } from './embeddings.js';
 
 // Internal memory-resident index state
@@ -12,9 +12,12 @@ const idfModel = {};
 let masterVocabulary = new Set();
 let isInitialized = false;
 
+// Reconstructed memory cache of the multilingual items
+let cachedKnowledgeBase = [];
+
 /**
  * Extract all search text from a multilingual knowledge item.
- * Combines all language variants (EN, HI, TE) to make cross-lingual searches work seamlessly.
+ * Combines all language variants (EN, HI, TE) to make cross-lingual searches work.
  */
 function extractSearchText(item) {
   const parts = [
@@ -56,57 +59,119 @@ function extractSearchText(item) {
 }
 
 /**
- * Initialize and build the TF-IDF vector store index.
- * Only runs once and is lightning-fast.
+ * Initialize and build the TF-IDF vector store index from SQLite records.
+ * Only runs once and caches in memory for super-fast lookups.
  */
-export function initializeVectorStore() {
+export async function initializeVectorStore() {
   if (isInitialized) return;
 
-  const totalDocs = KNOWLEDGE_BASE.length;
-  const docFrequency = {};
-
-  // Phase 1: Tokenize all documents and record term counts
-  const tempDocs = KNOWLEDGE_BASE.map(item => {
-    const textContent = extractSearchText(item);
-    const tokens = tokenize(textContent);
-    const tf = computeTF(tokens);
-    const uniqueTokens = new Set(tokens);
-
-    // Track corpus-wide frequencies
-    for (const token of uniqueTokens) {
-      docFrequency[token] = (docFrequency[token] || 0) + 1;
-      masterVocabulary.add(token);
-    }
-
-    return {
-      item,
-      tf,
-      tokens
-    };
-  });
-
-  // Phase 2: Compute Inverse Document Frequency (IDF) for all words in vocabulary
-  // We use smooth IDF: ln(1 + totalDocs / (1 + docFreq))
-  for (const token of masterVocabulary) {
-    const freq = docFrequency[token] || 0;
-    idfModel[token] = Math.log(1 + (totalDocs / (1 + freq)));
-  }
-
-  // Phase 3: Create TF-IDF vectors for all documents
-  for (const doc of tempDocs) {
-    const vector = {};
-    for (const token in doc.tf) {
-      vector[token] = doc.tf[token] * idfModel[token];
-    }
+  try {
+    console.log('[RAG VectorStore] Loading articles from SQLite database...');
+    const rows = await getAll('SELECT * FROM foods;');
     
-    documentIndex.push({
-      item: doc.item,
-      vector: vector
-    });
-  }
+    if (!rows || rows.length === 0) {
+      console.warn('[RAG VectorStore] Database foods table is empty. Seeding is required.');
+      return;
+    }
 
-  isInitialized = true;
-  console.log(`[RAG VectorStore] Initialized successfully. Indexed ${totalDocs} articles with ${masterVocabulary.size} unique terms.`);
+    // Group rows by id to reconstruct multilingual articles
+    const docsMap = {};
+    for (const row of rows) {
+      if (!docsMap[row.id]) {
+        let vitaminsArr = [];
+        let mineralsArr = [];
+        try {
+          vitaminsArr = JSON.parse(row.vitamins || '[]');
+          mineralsArr = JSON.parse(row.minerals || '[]');
+        } catch {
+          // Fallback if parsing fails
+        }
+
+        docsMap[row.id] = {
+          id: row.id,
+          category: row.category,
+          nutritionFacts: {
+            calories: row.calories,
+            protein: `${row.protein}g`,
+            carbs: `${row.carbs}g`,
+            fats: `${row.fats}g`,
+            fiber: `${row.fiber}g`,
+            vitamins: vitaminsArr,
+            minerals: mineralsArr,
+            hydration: `${row.hydration}%`
+          },
+          title: {},
+          benefits: {},
+          recommendedIntake: {},
+          bestTime: {},
+          warnings: {},
+          relatedFoods: []
+        };
+      }
+      const lang = row.language_code;
+      docsMap[row.id].title[lang] = row.name;
+      docsMap[row.id].benefits[lang] = row.benefits;
+      docsMap[row.id].recommendedIntake[lang] = row.recommended_quantity;
+      docsMap[row.id].bestTime[lang] = row.best_time;
+      docsMap[row.id].warnings[lang] = row.warnings;
+    }
+
+    cachedKnowledgeBase = Object.values(docsMap);
+
+    // Build smart category-based relationships dynamically
+    for (const doc of cachedKnowledgeBase) {
+      doc.relatedFoods = cachedKnowledgeBase
+        .filter(d => d.category === doc.category && d.id !== doc.id)
+        .map(d => d.id)
+        .slice(0, 4);
+    }
+
+    const totalDocs = cachedKnowledgeBase.length;
+    const docFrequency = {};
+
+    // Phase 1: Tokenize all documents and record term counts
+    const tempDocs = cachedKnowledgeBase.map(item => {
+      const textContent = extractSearchText(item);
+      const tokens = tokenize(textContent);
+      const tf = computeTF(tokens);
+      const uniqueTokens = new Set(tokens);
+
+      for (const token of uniqueTokens) {
+        docFrequency[token] = (docFrequency[token] || 0) + 1;
+        masterVocabulary.add(token);
+      }
+
+      return {
+        item,
+        tf,
+        tokens
+      };
+    });
+
+    // Phase 2: Compute Inverse Document Frequency (IDF)
+    for (const token of masterVocabulary) {
+      const freq = docFrequency[token] || 0;
+      idfModel[token] = Math.log(1 + (totalDocs / (1 + freq)));
+    }
+
+    // Phase 3: Create TF-IDF vectors
+    for (const doc of tempDocs) {
+      const vector = {};
+      for (const token in doc.tf) {
+        vector[token] = doc.tf[token] * idfModel[token];
+      }
+      
+      documentIndex.push({
+        item: doc.item,
+        vector: vector
+      });
+    }
+
+    isInitialized = true;
+    console.log(`[RAG VectorStore] Dynamic initialization complete. Indexed ${totalDocs} articles from SQLite with ${masterVocabulary.size} terms.`);
+  } catch (error) {
+    console.error('[RAG VectorStore] Error initializing dynamic vector store:', error);
+  }
 }
 
 /**
@@ -116,9 +181,9 @@ export function initializeVectorStore() {
  * @returns {Array<Object>} list of { item, score } sorted by score descending
  */
 export function similaritySearch(query, topK = 3) {
-  // Ensure initialized
   if (!isInitialized) {
-    initializeVectorStore();
+    console.warn('[RAG VectorStore] Search attempted before initialization completed.');
+    return [];
   }
 
   if (!query || query.trim() === '') return [];
@@ -135,11 +200,8 @@ export function similaritySearch(query, topK = 3) {
         score: score
       };
     })
-    // Keep only actual matches (score > 0)
     .filter(res => res.score > 0.02)
-    // Sort descending by score
     .sort((a, b) => b.score - a.score)
-    // Limit to top K
     .slice(0, topK);
 
   return results;
@@ -151,5 +213,23 @@ export function similaritySearch(query, topK = 3) {
  * @returns {Object|null}
  */
 export function getDocumentById(id) {
-  return KNOWLEDGE_BASE.find(item => item.id === id) || null;
+  return cachedKnowledgeBase.find(item => item.id === id) || null;
+}
+
+/**
+ * Retrieve the entire memory-resident multilingual corpus.
+ * @returns {Array<Object>}
+ */
+export function getCorpus() {
+  return cachedKnowledgeBase;
+}
+
+/**
+ * Wipe dynamic cache (used during migrations/testing)
+ */
+export function clearVectorStoreCache() {
+  documentIndex.length = 0;
+  masterVocabulary.clear();
+  cachedKnowledgeBase = [];
+  isInitialized = false;
 }

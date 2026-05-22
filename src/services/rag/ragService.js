@@ -8,12 +8,7 @@ import { retrieveKnowledge } from './retriever';
 import { buildRAGSystemPrompt } from './promptBuilder';
 import { chatWithAI } from '../aiService';
 
-// Ensure the vector store initializes on service start
-try {
-  initializeVectorStore();
-} catch (err) {
-  console.error('[RAG Service] Failed to auto-initialize Vector Store:', err);
-}
+// We initialize vector store dynamically inside retrieveKnowledge
 
 /**
  * Orchestrates the full Retrieval-Augmented Generation query cycle.
@@ -25,20 +20,13 @@ try {
  * @returns {Promise<Object>} { response: string, retrievedDocs: Array }
  */
 export async function generateRAGResponse(query, context = {}, isOnline = true) {
-  // Ensure vector store is initialized
-  try {
-    initializeVectorStore();
-  } catch (err) {
-    console.warn('[RAG Service] Vector store initialization warning:', err);
-  }
-
   const language = context.language || 'en';
   const profile = context.profile || {};
   const chatHistory = context.chatHistory || [];
   const scannedFood = context.scannedFood || null;
 
   // 1. Run Retriever to get RAG Context
-  const retrievedDocs = retrieveKnowledge(query, {
+  const retrievedDocs = await retrieveKnowledge(query, {
     language,
     topK: 2,
     scannedFood

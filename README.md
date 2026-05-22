@@ -60,6 +60,15 @@
 
 ---
 
+### 🔬 RAG Nutrition Intelligence (Retrieval-Augmented Generation)
+- **Memory-Resident Vector Store** — Custom TF-IDF similarity database indexes key health entries on startup in milliseconds.
+- **Dual Matching Search Fallback** — Combines direct keyword exact matches with vector space cosine similarities to capture user intent.
+- **Multilingual Tokenizer Engine** — Full tokenization support including English, Hindi (`\u0900-\u097F`), and Telugu (`\u0C00-\u0C7F`) Unicode character sets.
+- **Target-Tuned Prompt Orchestration** — Dynamically injects physical attributes, user fitness targets (e.g. calories for `fat_loss`, post-workout protein for `muscle_gain`), and strict dietary preference boundaries (e.g. `vegan` egg-free or `vegetarian` meat-free compliance).
+- **RAG-Powered Detail Widgets** — Renders verified `🛡️ Verified Source` bubble badges, caution health banners, comprehensive verified insights, and scrollable related foods carousels.
+
+---
+
 ## 🏗️ Architecture
 
 ```
@@ -77,9 +86,9 @@ NurivAi/
 │       └── settings.jsx          # ⚙️ Settings — Preferences
 │
 ├── src/
-│   ├── components/               # 14 reusable UI components
+│   ├── components/               # Reusable UI components
 │   │   ├── AnimatedSubtitle.jsx  # Word-by-word subtitle reveal
-│   │   ├── ChatBubble.jsx        # Animated slide-in chat messages
+│   │   ├── ChatBubble.jsx        # Animated chat bubble with 🛡️ RAG badges
 │   │   ├── EmptyState.jsx        # Empty list placeholder
 │   │   ├── HistoryCard.jsx       # Scan history entry card
 │   │   ├── ImagePreview.jsx      # Image preview with remove button
@@ -93,14 +102,22 @@ NurivAi/
 │   │   ├── VoiceButton.jsx       # TTS trigger button
 │   │   └── VoiceWaveform.jsx     # Animated audio bars
 │   │
-│   ├── providers/                # 5 React Context providers
-│   │   ├── AIProvider.jsx        # AI state + online/offline detection
+│   ├── providers/                # 6 React Context providers
+│   │   ├── AIProvider.jsx        # AI state + RAG routing + online/offline detection
 │   │   ├── HistoryProvider.jsx   # Scan history (AsyncStorage)
+│   │   ├── KnowledgeProvider.jsx # RAG active scanned food memory (Context)
 │   │   ├── NutritionProvider.jsx # Food lookup + guidance
 │   │   ├── ProfileProvider.jsx   # User profile (AsyncStorage)
 │   │   └── SettingsProvider.jsx  # App preferences (AsyncStorage)
 │   │
-│   ├── services/                 # 5 service modules
+│   ├── services/                 # Service modules
+│   │   ├── rag/                  # 🔬 Local RAG System Suite
+│   │   │   ├── embeddings.js     # Multilingual Tokenizer & Similarity math
+│   │   │   ├── knowledgeBase.js  # Local localized nutrition datasets (EN, HI, TE)
+│   │   │   ├── promptBuilder.js  # Goal-Based Prompt Adaptations
+│   │   │   ├── ragService.js     # Hybrid online/offline orchestrator
+│   │   │   ├── retriever.js      # Dual Keyword & Semantic search algorithm
+│   │   │   └── vectorStore.js    # Memory-Resident TF-IDF vector index
 │   │   ├── aiService.js          # OpenRouter API (vision + chat)
 │   │   ├── guidanceService.js    # Rule-based diet guidance engine
 │   │   ├── nutritionService.js   # Fuzzy food name matching

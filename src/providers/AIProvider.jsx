@@ -5,6 +5,7 @@
 import React, { createContext, useContext, useState, useCallback } from 'react';
 import { recognizeImage, chatWithAI, AIError } from '../services/aiService';
 import { useNetworkStatus } from '../hooks/useNetworkStatus';
+import { generateRAGResponse } from '../services/rag/ragService';
 
 const AIContext = createContext(null);
 
@@ -41,21 +42,33 @@ export function AIProvider({ children }) {
     setIsProcessing(true);
     setLastError(null);
     try {
-      const systemPrompt = buildSystemPrompt(context);
-      const result = await chatWithAI(messages, systemPrompt);
-      return result;
+      const userMessage = messages[messages.length - 1]?.content || '';
+      const chatHistory = messages.slice(0, -1);
+
+      const result = await generateRAGResponse(
+        userMessage,
+        {
+          profile: context.profile,
+          language: context.language || 'en',
+          chatHistory,
+          scannedFood: context.scannedFood,
+        },
+        isOnline
+      );
+
+      return result.response;
     } catch (error) {
       setLastError(error.message);
       throw new AIError(
         error.message || 'AI unavailable',
-        error.code === 'NETWORK_ERROR' || error.code === 'TIMEOUT'
+        error.code === 'NETWORK_ERROR' || error.code === 'TIMEOUT' || error.code === 'OFFLINE_FALLBACK'
           ? 'OFFLINE_FALLBACK'
           : error.code || 'API_ERROR'
       );
     } finally {
       setIsProcessing(false);
     }
-  }, []);
+  }, [isOnline]);
 
   return (
     <AIContext.Provider

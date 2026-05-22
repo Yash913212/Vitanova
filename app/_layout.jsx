@@ -14,6 +14,7 @@ import { ProfileProvider } from '../src/providers/ProfileProvider';
 import { HistoryProvider } from '../src/providers/HistoryProvider';
 import { NutritionProvider } from '../src/providers/NutritionProvider';
 import { AIProvider } from '../src/providers/AIProvider';
+import { KnowledgeProvider } from '../src/providers/KnowledgeProvider';
 import { COLORS } from '../src/utils/theme';
 import { useFonts, Poppins_400Regular, Poppins_500Medium, Poppins_600SemiBold, Poppins_700Bold } from '@expo-google-fonts/poppins';
 import { useAppTheme } from '../src/hooks/useAppTheme';
@@ -77,9 +78,11 @@ export default function RootLayout() {
           <ProfileProvider>
             <NutritionProvider>
               <HistoryProvider>
-                <AIProvider>
-                  <AuthGate />
-                </AIProvider>
+                <KnowledgeProvider>
+                  <AIProvider>
+                    <AuthGate />
+                  </AIProvider>
+                </KnowledgeProvider>
               </HistoryProvider>
             </NutritionProvider>
           </ProfileProvider>

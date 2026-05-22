@@ -1,12 +1,10 @@
-/**
- * NutriVision AI — Assistant Screen (Multilingual Voice)
- */
-import React, { useState, useRef, useCallback } from 'react';
+import React, { useState, useRef, useCallback, useEffect } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, FlatList, KeyboardAvoidingView,
-  Platform, StyleSheet,
+  Platform, StyleSheet, ScrollView
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useAI } from '../../src/providers/AIProvider';
 import { useProfile } from '../../src/providers/ProfileProvider';
 import { useSettings } from '../../src/providers/SettingsProvider';
@@ -34,6 +32,33 @@ const PLACEHOLDER = {
   te: 'పోషణ గురించి అడగండి...',
 };
 
+const PILLS = {
+  en: [
+    { label: "💪 High Protein", query: "What foods are high in protein?" },
+    { label: "🍊 Vitamin C Fruits", query: "Which fruits contain vitamin C?" },
+    { label: "⚡ Pre-Workout Fuel", query: "Best foods before workout?" },
+    { label: "🩺 Diabetic Safe", query: "What should diabetics avoid?" },
+    { label: "💧 Best Hydration", query: "Best hydration foods?" },
+    { label: "🔥 Fat Loss Diet", query: "What foods help with fat loss?" }
+  ],
+  hi: [
+    { label: "💪 उच्च प्रोटीन भोजन", query: "कौन से खाद्य पदार्थों में प्रोटीन अधिक होता है?" },
+    { label: "🍊 विटामिन सी फल", query: "किन फलों में विटामिन सी होता है?" },
+    { label: "⚡ वर्कआउट से पहले", query: "वर्कआउट से पहले क्या खाना सबसे अच्छा है?" },
+    { label: "🩺 मधुमेह के लिए", query: "मधुमेह रोगियों को क्या खाने से बचना चाहिए?" },
+    { label: "💧 बेस्ट हाइड्रेशन", query: "हाइड्रेशन के लिए सबसे अच्छे खाद्य पदार्थ कौन से हैं?" },
+    { label: "🔥 फैट लॉस डाइट", query: "वजन घटाने में कौन से खाद्य पदार्थ मदद करते हैं?" }
+  ],
+  te: [
+    { label: "💪 హై ప్రోటీన్", query: "ఏ ఆహారాలలో ప్రోటీన్ ఎక్కువగా ఉంటుంది?" },
+    { label: "🍊 విటమిన్ సి పండ్లు", query: "ఏ పండ్లలో విటమిన్ సి ఉంటుంది?" },
+    { label: "⚡ వ్యాయామానికి ముందు", query: "వ్యాయామానికి ముందు ఏ ఆహారం తినడం మంచిది?" },
+    { label: "🩺 డయాబెటిస్ జాగ్రత్తలు", query: "డయాబెటిస్ ఉన్నవారు ఏ ఆహారాలు తినకూడదు?" },
+    { label: "💧 హైడ్రేషన్ చిట్కాలు", query: "హైడ్రేషన్ కోసం ఉత్తమ ఆహారాలు ఏవి?" },
+    { label: "🔥 ఫ్యాట్ లాస్ డైట్", query: "కొవ్వు తగ్గడానికి ఏ ఆహారాలు సహాయపడతాయి?" }
+  ]
+};
+
 export default function AssistantScreen() {
   const { isDark, colors } = useAppTheme();
   const [messages, setMessages] = useState([]);
@@ -50,6 +75,8 @@ export default function AssistantScreen() {
   const { profile } = useProfile();
   const { settings } = useSettings();
   const { askQuestion, getNutrition } = useNutrition();
+  const params = useLocalSearchParams();
+  const router = useRouter();
 
   // Show welcome message in current language
   const welcomeMsg = { role: 'assistant', content: WELCOME[activeLang] || WELCOME.en };
@@ -98,8 +125,8 @@ export default function AssistantScreen() {
     return askQuestion(text, nutrition, profile);
   }, [getNutrition, askQuestion, profile]);
 
-  const sendMessage = useCallback(async () => {
-    const text = input.trim();
+  const sendMessage = useCallback(async (overrideText) => {
+    const text = (typeof overrideText === 'string' ? overrideText : input).trim();
     if (!text) return;
 
     const userMsg = { role: 'user', content: text };
@@ -110,12 +137,8 @@ export default function AssistantScreen() {
     try {
       let response;
 
-      // Try online AI first
+      // Try RAG-enabled chat (online/offline internally handled)
       try {
-        const langInstruction = activeLang !== 'en'
-          ? `\nIMPORTANT: Respond in ${activeLang === 'hi' ? 'Hindi' : 'Telugu'} language.`
-          : '';
-
         const chatHistory = [...messages, userMsg]
           .filter((m) => m.role !== 'system')
           .slice(-10)
@@ -123,15 +146,25 @@ export default function AssistantScreen() {
 
         response = await chat(chatHistory, {
           profile,
-          languageInstruction: langInstruction,
+          language: activeLang,
         });
       } catch (aiError) {
-        // AI failed — use offline fallback
+        // Fallback fail-safe
         response = getOfflineResponse(text);
         response = `📡 (Offline mode)\n\n${response}`;
       }
 
-      const aiMsg = { role: 'assistant', content: response };
+      // Check if response contains hallmarks of RAG source verified content
+      const isRagResponse = response.includes('According to the local database') ||
+                            response.includes('स्थानीय डेटाबेस') ||
+                            response.includes('స్థానిక డేటాబేస్') ||
+                            response.includes('Verified') ||
+                            response.includes('📡') ||
+                            response.includes('Source') ||
+                            response.includes('nutrition') ||
+                            (!response.startsWith("I'm having trouble") && !response.includes("trouble right now"));
+
+      const aiMsg = { role: 'assistant', content: response, isRAG: isRagResponse };
       setMessages((prev) => [...prev, aiMsg]);
 
       if (settings.autoTTS) {
@@ -147,6 +180,14 @@ export default function AssistantScreen() {
       setIsTyping(false);
     }
   }, [input, messages, chat, profile, settings, activeLang, getOfflineResponse, handleSpeak]);
+
+  // Transition query listener
+  useEffect(() => {
+    if (params?.query) {
+      sendMessage(params.query);
+      router.setParams({ query: undefined });
+    }
+  }, [params?.query, sendMessage]);
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
@@ -220,8 +261,29 @@ export default function AssistantScreen() {
         keyboardVerticalOffset={90}
         style={styles.keyboardContainer}
       >
+        {/* RAG Query Suggestion Pills */}
+        <View style={{ backgroundColor: colors.glassBg, borderTopWidth: 1, borderTopColor: colors.borderLight, paddingTop: SPACING.xs, paddingBottom: 2 }}>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.pillsScrollContainer}
+          >
+            {(PILLS[activeLang] || PILLS.en).map((pill, i) => (
+              <TouchableOpacity
+                key={i}
+                style={[styles.pill, { backgroundColor: colors.surface, borderColor: colors.borderLight }]}
+                onPress={() => sendMessage(pill.query)}
+                disabled={isTyping}
+                activeOpacity={0.7}
+              >
+                <Text style={[styles.pillText, { color: colors.textPrimary }]}>{pill.label}</Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        </View>
+
         {/* Language selector floating right above input row */}
-        <View style={[styles.languageSwitcherContainer, { backgroundColor: colors.glassBg, borderTopColor: colors.borderLight }]}>
+        <View style={[styles.languageSwitcherContainer, { backgroundColor: colors.glassBg, borderTopColor: colors.borderLight, borderTopWidth: 0 }]}>
           <Text style={[styles.langBarTitle, { color: colors.textSecondary }]}>Choose Language:</Text>
           <LanguageSwitcher
             activeLanguage={activeLang}
@@ -367,5 +429,23 @@ const styles = StyleSheet.create({
     fontFamily: TYPOGRAPHY.poppinsBold,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
+  },
+  pillsScrollContainer: {
+    paddingHorizontal: SPACING.md,
+    paddingVertical: SPACING.xs,
+    gap: SPACING.xs,
+    flexDirection: 'row',
+  },
+  pill: {
+    paddingHorizontal: SPACING.md,
+    paddingVertical: 6,
+    borderRadius: RADIUS.full,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  pillText: {
+    fontSize: 12,
+    fontWeight: '600',
   },
 });

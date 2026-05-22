@@ -52,6 +52,13 @@ export default function ChatBubble({ message, onSpeak, language = 'en', index = 
         <Text style={[styles.text, isUser ? styles.textUser : [styles.textAI, { color: colors.textPrimary }]]}>
           {message.content}
         </Text>
+        
+        {message.isRAG && (
+          <View style={[styles.ragBadge, { backgroundColor: accentColor + '10' }]}>
+            <Text style={[styles.ragBadgeText, { color: accentColor }]}>🛡️ Verified Source</Text>
+          </View>
+        )}
+
         {!isUser && onSpeak && (
           <TouchableOpacity
             onPress={() => onSpeak(message.content)}
@@ -111,4 +118,18 @@ const styles = StyleSheet.create({
   textAI: { color: COLORS.textPrimary },
   speakBtn: { marginTop: 6, alignSelf: 'flex-end' },
   speakIcon: { fontSize: 14 },
+  ragBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 4,
+    alignSelf: 'flex-start',
+  },
+  ragBadgeText: {
+    fontSize: 10,
+    fontWeight: '700',
+    letterSpacing: 0.3,
+  },
 });

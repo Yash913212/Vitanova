@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "1099447977242",
+    "project_id": "vitanova-5be0f",
+    "storage_bucket": "vitanova-5be0f.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:1099447977242:android:9c33ab749beba6652018a3",
+        "android_client_info": {
+          "package_name": "com.vitanova"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAxw5ONo22Pc3Vy-V0lz6ztSSCjLSiti3I"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

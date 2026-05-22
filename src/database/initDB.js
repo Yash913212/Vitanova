@@ -3,7 +3,23 @@
  * Constructs all 5 tables and search performance indexes.
  */
 
-import { executeRaw } from './sqlite.js';
+import { executeRaw, getAll } from './sqlite.js';
+
+/**
+ * Check if a column exists in a given table.
+ * @param {string} tableName
+ * @param {string} columnName
+ * @returns {Promise<boolean>}
+ */
+async function columnExists(tableName, columnName) {
+  try {
+    const columns = await getAll(`PRAGMA table_info(${tableName});`);
+    return columns.some(col => col.name === columnName);
+  } catch (error) {
+    console.error(`[SQLite Migration] Failed to check column ${columnName} in ${tableName}:`, error);
+    return false;
+  }
+}
 
 /**
  * Initialize all database tables and indexes if they do not exist.
@@ -123,34 +139,25 @@ export async function initializeDatabase() {
       );
     `);
 
-
-    // Self-healing migration for existing databases
-    try {
+    // Self-healing migration for existing databases using dynamic checks
+    if (!(await columnExists('scan_history', 'synced'))) {
       await executeRaw('ALTER TABLE scan_history ADD COLUMN synced INTEGER DEFAULT 0;');
       console.log('[SQLite Migration] Added synced column to scan_history');
-    } catch (e) {
-      // Column already exists
     }
 
-    try {
+    if (!(await columnExists('user_profile', 'synced'))) {
       await executeRaw('ALTER TABLE user_profile ADD COLUMN synced INTEGER DEFAULT 0;');
       console.log('[SQLite Migration] Added synced column to user_profile');
-    } catch (e) {
-      // Column already exists
     }
 
-    try {
+    if (!(await columnExists('settings', 'has_onboarded'))) {
       await executeRaw('ALTER TABLE settings ADD COLUMN has_onboarded INTEGER DEFAULT 0;');
       console.log('[SQLite Migration] Added has_onboarded column to settings');
-    } catch (e) {
-      // Column already exists
     }
 
-    try {
+    if (!(await columnExists('settings', 'has_configured_profile'))) {
       await executeRaw('ALTER TABLE settings ADD COLUMN has_configured_profile INTEGER DEFAULT 0;');
       console.log('[SQLite Migration] Added has_configured_profile column to settings');
-    } catch (e) {
-      // Column already exists
     }
 
     console.log('[SQLite] Schema and indexes configured successfully.');

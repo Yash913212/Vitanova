@@ -6,22 +6,22 @@ const config = getDefaultConfig(__dirname);
 // Add wasm to asset extensions
 config.resolver.assetExts.push('wasm');
 
-// Comprehensive node module shims for Metro static resolution
+// Mappings for standard Node libraries to pure-JS package shims
 config.resolver.extraNodeModules = {
   ws: path.resolve(__dirname, 'src/utils/mockWs.js'),
-  stream: path.resolve(__dirname, 'src/utils/mockEmpty.js'),
-  zlib: path.resolve(__dirname, 'src/utils/mockEmpty.js'),
+  stream: require.resolve('stream-browserify'),
+  zlib: require.resolve('browserify-zlib'),
+  crypto: require.resolve('crypto-browserify'),
+  events: require.resolve('events'),
+  util: require.resolve('util'),
+  assert: require.resolve('assert'),
   http: path.resolve(__dirname, 'src/utils/mockEmpty.js'),
   https: path.resolve(__dirname, 'src/utils/mockEmpty.js'),
-  crypto: path.resolve(__dirname, 'src/utils/mockEmpty.js'),
-  buffer: path.resolve(__dirname, 'src/utils/mockEmpty.js'),
-  util: path.resolve(__dirname, 'src/utils/mockEmpty.js'),
   net: path.resolve(__dirname, 'src/utils/mockEmpty.js'),
   tls: path.resolve(__dirname, 'src/utils/mockEmpty.js'),
   fs: path.resolve(__dirname, 'src/utils/mockEmpty.js'),
   path: path.resolve(__dirname, 'src/utils/mockEmpty.js'),
   url: path.resolve(__dirname, 'src/utils/mockEmpty.js'),
-  events: path.resolve(__dirname, 'src/utils/mockEmpty.js'),
 };
 
 module.exports = config;

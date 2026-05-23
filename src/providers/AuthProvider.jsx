@@ -1,11 +1,10 @@
 /**
  * NutriVision AI — Auth Provider
- * Production-ready cloud authentication utilizing Supabase.
+ * Uses Supabase Auth for real authentication.
+ * Local user-scoped storage for profile/history/settings remains separate.
  */
-
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import { supabase } from '../services/supabase/client';
-import { syncData } from '../services/supabase/syncService';
+import { supabase } from '../utils/supabase';
 
 const AuthContext = createContext(null);
 
@@ -13,158 +12,113 @@ export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Initialise session checks and event listeners on mount
+  // Listen for auth state changes on mount
   useEffect(() => {
-    let subscription;
-
-    (async () => {
+    // Check current session
+    const initAuth = async () => {
       try {
         const { data: { session } } = await supabase.auth.getSession();
-        if (session && session.user) {
-          setUser(session.user);
-          // Trigger automatic background synchronization on boot
-          syncData();
+        if (session?.user) {
+          setUser({
+            id: session.user.id,
+            email: session.user.email,
+            name: session.user.user_metadata?.name || '',
+            isLoggedIn: true,
+          });
         }
       } catch (e) {
-        console.warn('[Auth] Failed to restore session:', e);
+        console.warn('Auth init error:', e);
       } finally {
         setIsLoading(false);
       }
-    })();
-
-    // Listen for Auth changes (login, logout, token refresh)
-    const { data } = supabase.auth.onAuthStateChange(async (event, session) => {
-      console.log(`[Auth Event] ${event}`);
-      if (session && session.user) {
-        setUser(session.user);
-        // Sync user profile & logs to cloud in background
-        syncData();
-      } else {
-        setUser(null);
-      }
-      setIsLoading(false);
-    });
-
-    subscription = data.subscription;
-
-    return () => {
-      if (subscription) {
-        subscription.unsubscribe();
-      }
     };
+
+    initAuth();
+
+    // Subscribe to auth changes (login, logout, token refresh)
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      (_event, session) => {
+        if (session?.user) {
+          setUser({
+            id: session.user.id,
+            email: session.user.email,
+            name: session.user.user_metadata?.name || '',
+            isLoggedIn: true,
+          });
+        } else {
+          setUser(null);
+        }
+        setIsLoading(false);
+      }
+    );
+
+    return () => subscription?.unsubscribe();
   }, []);
 
-  /**
-   * User Signup.
-   */
   const signup = useCallback(async ({ name, email, password }) => {
     const { data, error } = await supabase.auth.signUp({
-      email,
+      email: email.toLowerCase().trim(),
       password,
       options: {
-        data: {
-          name,
-        },
+        data: { name }, // stored in user_metadata
       },
     });
 
-    if (error) throw error;
-    return data.user;
+    if (error) throw new Error(error.message);
+
+    // Supabase may require email confirmation depending on project settings.
+    // If the user is returned immediately, set them.
+    if (data?.user) {
+      const userData = {
+        id: data.user.id,
+        email: data.user.email,
+        name: name,
+        isLoggedIn: true,
+      };
+      setUser(userData);
+      return userData;
+    }
+
+    // If email confirmation is required, user won't be immediately authenticated
+    return { confirmationRequired: true };
   }, []);
 
-  /**
-   * User Email/Password Sign-In.
-   */
   const login = useCallback(async ({ email, password }) => {
     const { data, error } = await supabase.auth.signInWithPassword({
-      email,
+      email: email.toLowerCase().trim(),
       password,
     });
 
-    if (error) throw error;
-    return data.user;
+    if (error) throw new Error(error.message);
+
+    const userData = {
+      id: data.user.id,
+      email: data.user.email,
+      name: data.user.user_metadata?.name || '',
+      isLoggedIn: true,
+    };
+    setUser(userData);
+    return userData;
   }, []);
 
-  /**
-   * User Sign-Out.
-   */
   const logout = useCallback(async () => {
     const { error } = await supabase.auth.signOut();
-    if (error) throw error;
+    if (error) console.warn('Logout error:', error.message);
     setUser(null);
   }, []);
 
-  /**
-   * Update User Metadata attributes.
-   */
   const updateUser = useCallback(async (updates) => {
-    const { data, error } = await supabase.auth.updateUser({
-      data: updates,
-    });
-
-    if (error) throw error;
-    setUser(data.user);
-    return data.user;
-  }, []);
-
-  /**
-   * OAuth Google Sign-In (Future Ready stub).
-   * Fully compatible with standard Expo Google Sign-In.
-   */
-  const signInWithGoogle = useCallback(async (idToken) => {
-    if (!idToken) {
-      throw new Error('Google Sign-In requires an active ID token.');
+    // Update Supabase user metadata if name changed
+    if (updates.name) {
+      await supabase.auth.updateUser({
+        data: { name: updates.name },
+      });
     }
-    const { data, error } = await supabase.auth.signInWithIdToken({
-      provider: 'google',
-      token: idToken,
-    });
-    if (error) throw error;
-    return data.user;
+    setUser((prev) => (prev ? { ...prev, ...updates } : prev));
   }, []);
-
-  /**
-   * OAuth Apple Sign-In (Future Ready stub).
-   * Fully compatible with standard Expo Sign in with Apple.
-   */
-  const signInWithApple = useCallback(async (idToken) => {
-    if (!idToken) {
-      throw new Error('Apple Sign-In requires an active ID token.');
-    }
-    const { data, error } = await supabase.auth.signInWithIdToken({
-      provider: 'apple',
-      token: idToken,
-    });
-    if (error) throw error;
-    return data.user;
-  }, []);
-
-  /**
-   * Biometric Auth Handler (Future Ready stub).
-   * Verifies local biometrics and fetches cached credentials.
-   */
-  const signInWithBiometrics = useCallback(async (credentials) => {
-    if (!credentials || !credentials.email || !credentials.password) {
-      throw new Error('Biometric auth requires validated cached credentials.');
-    }
-    return login({ email: credentials.email, password: credentials.password });
-  }, [login]);
 
   return (
-    <AuthContext.Provider
-      value={{
-        user,
-        isLoading,
-        signup,
-        login,
-        logout,
-        updateUser,
-        signInWithGoogle,
-        signInWithApple,
-        signInWithBiometrics,
-        isAuthenticated: !!user,
-      }}
-    >
+    <AuthContext.Provider value={{ user, isLoading, signup, login, logout, updateUser, isAuthenticated: !!user }}>
       {children}
     </AuthContext.Provider>
   );

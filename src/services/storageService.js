@@ -1,5 +1,6 @@
 /**
  * NutriVision AI — AsyncStorage Wrapper Service
+ * Supports user-scoped keys for multi-account data isolation.
  */
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
@@ -31,4 +32,15 @@ export async function removeData(key) {
     console.error('StorageService removeData error:', e);
     return false;
   }
+}
+
+/**
+ * Build a user-scoped storage key.
+ * e.g. getUserKey('@nutrivision_profile', 'user@example.com')
+ *      => '@nutrivision_profile__user@example.com'
+ * Falls back to the base key if no userEmail is provided.
+ */
+export function getUserKey(baseKey, userEmail) {
+  if (!userEmail) return baseKey;
+  return `${baseKey}__${userEmail.toLowerCase().trim()}`;
 }

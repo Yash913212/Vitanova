@@ -11,6 +11,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import { useAuth } from '../src/providers/AuthProvider';
 import { COLORS, TYPOGRAPHY, SPACING, RADIUS, SHADOWS } from '../src/utils/theme';
+import { useAppTheme } from '../src/hooks/useAppTheme';
 
 export default function LoginScreen() {
   const [email, setEmail] = useState('');
@@ -19,6 +20,7 @@ export default function LoginScreen() {
   const [loading, setLoading] = useState(false);
   const router = useRouter();
   const { login } = useAuth();
+  const { isDark, colors, toggleTheme } = useAppTheme();
 
   // Animation refs
   const logoScale = useRef(new Animated.Value(0)).current;
@@ -35,26 +37,26 @@ export default function LoginScreen() {
   const googleSlide = useRef(new Animated.Value(20)).current;
 
   useEffect(() => {
-    Animated.sequence([
-      Animated.spring(logoScale, { toValue: 1, friction: 4, tension: 60, useNativeDriver: true }),
+    Animated.stagger(40, [
+      Animated.spring(logoScale, { toValue: 1, friction: 5, tension: 180, useNativeDriver: true }),
       Animated.parallel([
-        Animated.timing(titleFade, { toValue: 1, duration: 400, useNativeDriver: true }),
-        Animated.spring(titleSlide, { toValue: 0, friction: 8, tension: 80, useNativeDriver: true }),
+        Animated.timing(titleFade, { toValue: 1, duration: 200, useNativeDriver: true }),
+        Animated.spring(titleSlide, { toValue: 0, friction: 7, tension: 180, useNativeDriver: true }),
       ]),
-      Animated.timing(subtitleFade, { toValue: 1, duration: 300, useNativeDriver: true }),
+      Animated.timing(subtitleFade, { toValue: 1, duration: 200, useNativeDriver: true }),
       Animated.parallel([
-        Animated.timing(cardFade, { toValue: 1, duration: 400, useNativeDriver: true }),
-        Animated.spring(cardSlide, { toValue: 0, friction: 8, tension: 80, useNativeDriver: true }),
-      ]),
-      Animated.parallel([
-        Animated.timing(btnFade, { toValue: 1, duration: 300, useNativeDriver: true }),
-        Animated.spring(btnSlide, { toValue: 0, friction: 8, tension: 80, useNativeDriver: true }),
+        Animated.timing(cardFade, { toValue: 1, duration: 200, useNativeDriver: true }),
+        Animated.spring(cardSlide, { toValue: 0, friction: 7, tension: 180, useNativeDriver: true }),
       ]),
       Animated.parallel([
-        Animated.timing(googleFade, { toValue: 1, duration: 300, useNativeDriver: true }),
-        Animated.spring(googleSlide, { toValue: 0, friction: 8, tension: 80, useNativeDriver: true }),
+        Animated.timing(btnFade, { toValue: 1, duration: 200, useNativeDriver: true }),
+        Animated.spring(btnSlide, { toValue: 0, friction: 7, tension: 180, useNativeDriver: true }),
       ]),
-      Animated.timing(footerFade, { toValue: 1, duration: 400, useNativeDriver: true }),
+      Animated.parallel([
+        Animated.timing(googleFade, { toValue: 1, duration: 200, useNativeDriver: true }),
+        Animated.spring(googleSlide, { toValue: 0, friction: 7, tension: 180, useNativeDriver: true }),
+      ]),
+      Animated.timing(footerFade, { toValue: 1, duration: 200, useNativeDriver: true }),
     ]).start();
 
     const pulse = Animated.loop(
@@ -75,7 +77,7 @@ export default function LoginScreen() {
     setLoading(true);
     try {
       await login({ email: email.trim().toLowerCase(), password });
-      router.replace('/(tabs)');
+      router.replace('/profile?setup=true');
     } catch (e) {
       Alert.alert('Login Failed', e.message);
     } finally {
@@ -92,7 +94,13 @@ export default function LoginScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
+      {/* Theme Toggle */}
+      <TouchableOpacity activeOpacity={0.8} onPress={toggleTheme} style={[styles.themeToggle, { backgroundColor: colors.surfaceAlt, borderColor: colors.border }]}>
+        <Text style={styles.themeIcon}>{isDark ? '🌙' : '☀️'}</Text>
+        <Text style={[styles.themeToggleText, { color: colors.textPrimary }]}>{isDark ? 'Dark Mode' : 'Light Mode'}</Text>
+      </TouchableOpacity>
+
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         style={styles.flex}
@@ -108,23 +116,23 @@ export default function LoginScreen() {
           </Animated.View>
 
           {/* Title */}
-          <Animated.Text style={[styles.title, { opacity: titleFade, transform: [{ translateY: titleSlide }] }]}>
+          <Animated.Text style={[styles.title, { opacity: titleFade, transform: [{ translateY: titleSlide }], color: colors.textPrimary }]}>
             Welcome Back
           </Animated.Text>
-          <Animated.Text style={[styles.subtitle, { opacity: subtitleFade }]}>
+          <Animated.Text style={[styles.subtitle, { opacity: subtitleFade, color: colors.textSecondary }]}>
             Sign in to your VitaNova account
           </Animated.Text>
 
           {/* Card */}
-          <Animated.View style={[styles.card, { opacity: cardFade, transform: [{ translateY: cardSlide }] }]}>
+          <Animated.View style={[styles.card, { opacity: cardFade, transform: [{ translateY: cardSlide }], backgroundColor: colors.surface, borderColor: colors.border }]}>
             <View style={styles.inputGroup}>
-              <Text style={styles.label}>📧 Email</Text>
+              <Text style={[styles.label, { color: colors.textPrimary }]}>📧 Email</Text>
               <TextInput
-                style={styles.input}
+                style={[styles.input, { backgroundColor: colors.surfaceAlt, color: colors.textPrimary, borderColor: colors.border }]}
                 value={email}
                 onChangeText={setEmail}
                 placeholder="you@example.com"
-                placeholderTextColor={COLORS.textTertiary}
+                placeholderTextColor={colors.textTertiary}
                 keyboardType="email-address"
                 autoCapitalize="none"
                 autoCorrect={false}
@@ -132,14 +140,14 @@ export default function LoginScreen() {
             </View>
 
             <View style={styles.inputGroup}>
-              <Text style={styles.label}>🔒 Password</Text>
+              <Text style={[styles.label, { color: colors.textPrimary }]}>🔒 Password</Text>
               <View style={styles.passwordRow}>
                 <TextInput
-                  style={[styles.input, styles.passwordInput]}
+                  style={[styles.input, styles.passwordInput, { backgroundColor: colors.surfaceAlt, color: colors.textPrimary, borderColor: colors.border }]}
                   value={password}
                   onChangeText={setPassword}
                   placeholder="Enter your password"
-                  placeholderTextColor={COLORS.textTertiary}
+                  placeholderTextColor={colors.textTertiary}
                   secureTextEntry={!showPassword}
                   autoCapitalize="none"
                 />
@@ -166,22 +174,22 @@ export default function LoginScreen() {
 
           {/* Divider */}
           <Animated.View style={[styles.dividerRow, { opacity: googleFade }]}>
-            <View style={styles.dividerLine} />
-            <Text style={styles.dividerText}>or</Text>
-            <View style={styles.dividerLine} />
+            <View style={[styles.dividerLine, { backgroundColor: colors.border }]} />
+            <Text style={[styles.dividerText, { color: colors.textTertiary }]}>or</Text>
+            <View style={[styles.dividerLine, { backgroundColor: colors.border }]} />
           </Animated.View>
 
           {/* Google Sign-In */}
           <Animated.View style={{ opacity: googleFade, transform: [{ translateY: googleSlide }] }}>
-            <TouchableOpacity style={styles.googleBtn} onPress={handleGoogleSignIn} activeOpacity={0.8}>
+            <TouchableOpacity style={[styles.googleBtn, { backgroundColor: colors.surface, borderColor: colors.border }]} onPress={handleGoogleSignIn} activeOpacity={0.8}>
               <Text style={styles.googleIcon}>G</Text>
-              <Text style={styles.googleBtnText}>Continue with Google</Text>
+              <Text style={[styles.googleBtnText, { color: colors.textPrimary }]}>Continue with Google</Text>
             </TouchableOpacity>
           </Animated.View>
 
           {/* Footer */}
           <Animated.View style={[styles.footer, { opacity: footerFade }]}>
-            <Text style={styles.footerText}>Don't have an account? </Text>
+            <Text style={[styles.footerText, { color: colors.textSecondary }]}>Don't have an account? </Text>
             <TouchableOpacity onPress={() => router.push('/signup')}>
               <Text style={styles.footerLink}>Sign Up</Text>
             </TouchableOpacity>
@@ -201,6 +209,15 @@ export default function LoginScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.background },
+  themeToggle: {
+    position: 'absolute', top: 52, right: 20, zIndex: 10,
+    flexDirection: 'row', alignItems: 'center',
+    paddingHorizontal: 12, paddingVertical: 8,
+    borderRadius: 20, borderWidth: 1.5,
+    ...SHADOWS.sm,
+  },
+  themeIcon: { fontSize: 16, marginRight: 6 },
+  themeToggleText: { fontSize: TYPOGRAPHY.caption, fontWeight: TYPOGRAPHY.semiBold },
   flex: { flex: 1 },
   scroll: {
     flexGrow: 1, paddingHorizontal: SPACING.xxl,

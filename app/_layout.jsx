@@ -9,8 +9,8 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { Slot, useRouter, useSegments } from 'expo-router';
 import { View, ActivityIndicator, StyleSheet } from 'react-native';
 import { AuthProvider, useAuth } from '../src/providers/AuthProvider';
-import { SettingsProvider, useSettings } from '../src/providers/SettingsProvider';
-import { ProfileProvider } from '../src/providers/ProfileProvider';
+import { SettingsProvider } from '../src/providers/SettingsProvider';
+import { ProfileProvider, useProfile } from '../src/providers/ProfileProvider';
 import { HistoryProvider } from '../src/providers/HistoryProvider';
 import { NutritionProvider } from '../src/providers/NutritionProvider';
 import { AIProvider } from '../src/providers/AIProvider';
@@ -19,69 +19,48 @@ import { COLORS } from '../src/utils/theme';
 import { useFonts, Poppins_400Regular, Poppins_500Medium, Poppins_600SemiBold, Poppins_700Bold } from '@expo-google-fonts/poppins';
 import { useAppTheme } from '../src/hooks/useAppTheme';
 
-import { initializeDatabase } from '../src/database/initDB.js';
-import { seedDatabase } from '../src/database/seedFoods.js';
-
 function AuthGate() {
-  const { isAuthenticated, isLoading } = useAuth();
-  const { settings, loaded: settingsLoaded } = useSettings();
-  const { isDark } = useAppTheme();
+  const { isAuthenticated, isLoading, user } = useAuth();
+  const { profile, loaded: profileLoaded, profileUserEmail } = useProfile();
+  const { isDark, colors } = useAppTheme();
   const segments = useSegments();
   const router = useRouter();
 
   useEffect(() => {
-    if (isLoading || !settingsLoaded) return;
+    // Only proceed if auth has loaded, and if authenticated, ensure the profile belongs to the CURRENT user
+    if (isLoading) return;
+    if (isAuthenticated && (!profileLoaded || profileUserEmail !== user?.email)) return;
 
-    const currentRoute = segments[0];
-    const isWelcome = currentRoute === 'welcome';
-    const isLogin = currentRoute === 'login';
-    const isSignup = currentRoute === 'signup';
-    const isForgotPassword = currentRoute === 'forgot-password';
-    const isProfileSetup = currentRoute === 'profile-setup';
+    const inAuthGroup = segments[0] === 'login' || segments[0] === 'signup';
+    const onProfilePage = segments[0] === 'profile';
 
-    // 1. Welcome Onboarding check
-    if (!settings.has_onboarded) {
-      if (!isWelcome) {
-        router.replace('/welcome');
-      }
-      return;
+    // Check if the profile needs setup (missing essential fields)
+    const needsProfileSetup = !profile.age && !profile.height && !profile.weight;
+
+    if (!isAuthenticated && !inAuthGroup) {
+      // Not logged in, redirect to login
+      router.replace('/login');
+    } else if (isAuthenticated && inAuthGroup) {
+      // Just logged in — always show profile page first
+      router.replace('/profile?setup=true');
+    } else if (isAuthenticated && onProfilePage) {
+      // Already on profile page, don't interfere — let the user complete setup
     }
+  }, [isAuthenticated, isLoading, profileLoaded, profileUserEmail, user, segments, profile]);
 
-    // 2. Authentication check
-    if (!isAuthenticated) {
-      const inAuthGroup = isLogin || isSignup || isForgotPassword || isWelcome;
-      if (!inAuthGroup) {
-        router.replace('/login');
-      }
-    } else {
-      // 3. Physical profile configuration check
-      if (!settings.has_configured_profile) {
-        if (!isProfileSetup) {
-          router.replace('/profile-setup');
-        }
-      } else {
-        // Authenticated and set up: bounce away from login/onboarding back to tabs
-        const inAuthGroup = isLogin || isSignup || isForgotPassword || isWelcome || isProfileSetup;
-        if (inAuthGroup) {
-          router.replace('/(tabs)');
-        }
-      }
-    }
-  }, [isAuthenticated, isLoading, settings, settingsLoaded, segments]);
-
-  if (isLoading || !settingsLoaded) {
+  if (isLoading) {
     return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color={COLORS.primary} />
+      <View style={[styles.loadingContainer, { backgroundColor: colors.background }]}>
+        <ActivityIndicator size="large" color={colors.primary} />
       </View>
     );
   }
 
   return (
-    <>
-      <StatusBar style={isDark ? 'light' : 'dark'} />
+    <View style={{ flex: 1, backgroundColor: colors.background }}>
+      <StatusBar style={isDark ? 'light' : 'dark'} backgroundColor={colors.background} translucent={false} />
       <Slot />
-    </>
+    </View>
   );
 }
 
@@ -93,22 +72,7 @@ export default function RootLayout() {
     Poppins_700Bold,
   });
 
-  const [dbReady, setDbReady] = React.useState(false);
-
-  useEffect(() => {
-    (async () => {
-      try {
-        await initializeDatabase();
-        await seedDatabase();
-        setDbReady(true);
-      } catch (err) {
-        console.error('[RootLayout] Database bootstrap failed:', err);
-        setDbReady(true); // Don't block user permanently
-      }
-    })();
-  }, []);
-
-  if (!fontsLoaded || !dbReady) {
+  if (!fontsLoaded) {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color={COLORS.primary} />

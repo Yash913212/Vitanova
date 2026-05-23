@@ -13,6 +13,7 @@ import { useHistory } from '../../src/providers/HistoryProvider';
 import { useProfile } from '../../src/providers/ProfileProvider';
 import { useSettings } from '../../src/providers/SettingsProvider';
 import { useAuth } from '../../src/providers/AuthProvider';
+import { useKnowledge } from '../../src/providers/KnowledgeProvider';
 import { speak } from '../../src/services/voiceService';
 import { imageToBase64 } from '../../src/utils/helpers';
 import { COLORS, TYPOGRAPHY, SPACING, RADIUS, SHADOWS } from '../../src/utils/theme';
@@ -48,6 +49,7 @@ export default function ScanScreen() {
   const [error, setError] = useState(null);
   const [offlineMode, setOfflineMode] = useState(false);
   const [manualInput, setManualInput] = useState('');
+  const [ragDoc, setRagDoc] = useState(null);
 
   const { recognizeFood, isOnline } = useAI();
   const { getNutrition, getGuidance } = useNutrition();
@@ -55,6 +57,7 @@ export default function ScanScreen() {
   const { profile } = useProfile();
   const { settings } = useSettings();
   const { user } = useAuth();
+  const { queryKnowledge } = useKnowledge();
 
   // Dynamic logged intake calculations for today
   const todayDateString = new Date().toDateString();
@@ -151,8 +154,8 @@ export default function ScanScreen() {
     ])).start();
   }, []);
 
-  const showResults = useCallback(async (itemName, conf, summary, uri) => {
-    const nutrition = await getNutrition(itemName);
+  const showResults = useCallback((itemName, conf, summary, uri) => {
+    const nutrition = getNutrition(itemName);
     setNutritionData(nutrition);
 
     let g = null;
@@ -160,6 +163,10 @@ export default function ScanScreen() {
       g = getGuidance(nutrition, profile);
       setGuidance(g);
     }
+    
+    const docs = queryKnowledge(itemName, { language: settings.ttsLanguage || 'en', topK: 1 });
+    const rDoc = docs.length > 0 ? docs[0] : null;
+    setRagDoc(rDoc);
 
     addEntry({
       item: itemName,
@@ -171,12 +178,14 @@ export default function ScanScreen() {
     });
 
     if (settings.autoTTS && itemName !== 'unknown') {
-      const speechText = nutrition
-        ? `Detected ${itemName}. It has ${nutrition.calories} calories per 100 grams. ${nutrition.benefits}`
-        : `Detected ${itemName}. ${summary}`;
+      const speechText = rDoc
+        ? `Detected ${itemName}. ${rDoc.benefits}. Recommended intake is ${rDoc.recommendedIntake}. Ideal time is ${rDoc.bestTime}.`
+        : nutrition
+          ? `Detected ${itemName}. It has ${nutrition.calories} calories per 100 grams. ${nutrition.benefits}`
+          : `Detected ${itemName}. ${summary}`;
       speak(speechText, settings.ttsLanguage);
     }
-  }, [getNutrition, getGuidance, addEntry, profile, settings]);
+  }, [getNutrition, getGuidance, addEntry, profile, settings, queryKnowledge]);
 
   const analyzeFromUri = useCallback(async (uri) => {
     setLoading(true);
@@ -190,7 +199,7 @@ export default function ScanScreen() {
       const base64 = await imageToBase64(uri);
       const result = await recognizeFood(base64);
       setScanResult(result);
-      await showResults(result.item, result.confidence, result.summary, uri);
+      showResults(result.item, result.confidence, result.summary, uri);
     } catch (e) {
       // If offline or network error, offer manual input
       if (e.code === 'OFFLINE_FALLBACK' || e.code === 'NETWORK_ERROR' || e.code === 'TIMEOUT' || e.code === 'CONFIG_ERROR') {
@@ -204,16 +213,20 @@ export default function ScanScreen() {
     }
   }, [recognizeFood, showResults]);
 
-  const handleOfflineLookup = useCallback(async () => {
+  const handleOfflineLookup = useCallback(() => {
     const name = manualInput.trim();
     if (!name) return;
 
-    const nutrition = await getNutrition(name);
+    const nutrition = getNutrition(name);
     if (nutrition) {
       setScanResult({ item: name, confidence: 1, summary: `Offline lookup: ${nutrition.name}` });
       setNutritionData(nutrition);
       const g = getGuidance(nutrition, profile);
       setGuidance(g);
+      
+      const docs = queryKnowledge(name, { language: settings.ttsLanguage || 'en', topK: 1 });
+      setRagDoc(docs.length > 0 ? docs[0] : null);
+      
       setError(null);
       setOfflineMode(false);
       setManualInput('');
@@ -229,7 +242,7 @@ export default function ScanScreen() {
     } else {
       setError(`"${name}" not found in offline database. Try: apple, banana, rice, chicken, etc.`);
     }
-  }, [manualInput, getNutrition, getGuidance, profile, addEntry, imageUri]);
+  }, [manualInput, getNutrition, getGuidance, profile, addEntry, imageUri, queryKnowledge, settings.ttsLanguage]);
 
   const pickImage = useCallback(async (useCamera) => {
     try {
@@ -283,6 +296,7 @@ export default function ScanScreen() {
     setScanResult(null);
     setNutritionData(null);
     setGuidance(null);
+    setRagDoc(null);
     setError(null);
     setOfflineMode(false);
     setManualInput('');
@@ -294,19 +308,21 @@ export default function ScanScreen() {
   const [foodSearch, setFoodSearch] = useState('');
   const [foodSearchResult, setFoodSearchResult] = useState(null);
 
-  const handleFoodSearch = useCallback(async () => {
+  const handleFoodSearch = useCallback(() => {
     const name = foodSearch.trim();
     if (!name) return;
-    const nutrition = await getNutrition(name);
+    const nutrition = getNutrition(name);
     if (nutrition) {
       const g = getGuidance(nutrition, profile);
-      setFoodSearchResult({ nutrition, guidance: g });
+      const docs = queryKnowledge(name, { language: settings.ttsLanguage || 'en', topK: 1 });
+      const rDoc = docs.length > 0 ? docs[0] : null;
+      setFoodSearchResult({ nutrition, guidance: g, ragDoc: rDoc });
       setError(null);
     } else {
       setFoodSearchResult(null);
       setError(`"${name}" not found. Try: apple, banana, rice, chicken, spinach, etc.`);
     }
-  }, [foodSearch, getNutrition, getGuidance, profile]);
+  }, [foodSearch, getNutrition, getGuidance, profile, queryKnowledge, settings.ttsLanguage]);
 
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
@@ -448,7 +464,18 @@ export default function ScanScreen() {
             {foodSearchResult && (
               <View style={styles.searchResult}>
                 <NutritionCard data={foodSearchResult.nutrition} />
-                {foodSearchResult.guidance && (
+                
+                {foodSearchResult.ragDoc && (
+                  <View style={[styles.searchGuidance, { borderColor: COLORS.primary, borderWidth: 1, backgroundColor: COLORS.primary + '10' }]}>
+                    <Text style={styles.searchGuidanceTitle}>🛡️ Verified RAG Insights</Text>
+                    <Text style={[styles.searchTip, { color: COLORS.textSecondary }]}>✨ Benefits: {foodSearchResult.ragDoc.benefits}</Text>
+                    <Text style={[styles.searchTip, { color: COLORS.textSecondary }]}>🕒 Best time: {foodSearchResult.ragDoc.bestTime}</Text>
+                    <Text style={[styles.searchTip, { color: COLORS.textSecondary }]}>⚖️ Intake: {foodSearchResult.ragDoc.recommendedIntake}</Text>
+                    {foodSearchResult.ragDoc.warnings ? <Text style={styles.warning}>⚠️ {foodSearchResult.ragDoc.warnings}</Text> : null}
+                  </View>
+                )}
+
+                {foodSearchResult.guidance && !foodSearchResult.ragDoc && (
                   <View style={styles.searchGuidance}>
                     <Text style={styles.searchGuidanceTitle}>🤖 Recommendation</Text>
                     <Text style={styles.searchGuidanceText}>{foodSearchResult.guidance.summary}</Text>
@@ -540,14 +567,28 @@ export default function ScanScreen() {
                 />
               </View>
               <Text style={styles.guidanceText}>{guidance.summary}</Text>
-              {guidance.tips?.length > 0 && (
+              
+              {ragDoc && (
+                <View style={[styles.tipsWrap, { marginTop: SPACING.md, paddingTop: SPACING.md, borderTopWidth: 1, borderTopColor: COLORS.border }]}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', marginBottom: 4 }}>
+                    <Text style={{ fontSize: 12, marginRight: 4 }}>🛡️</Text>
+                    <Text style={{ fontSize: TYPOGRAPHY.caption, fontFamily: TYPOGRAPHY.poppinsBold, color: COLORS.primary }}>Verified RAG Source</Text>
+                  </View>
+                  <Text style={[styles.tip, { color: COLORS.textSecondary }]}>✨ {ragDoc.benefits}</Text>
+                  <Text style={[styles.tip, { color: COLORS.textSecondary }]}>🕒 {ragDoc.bestTime}</Text>
+                  <Text style={[styles.tip, { color: COLORS.textSecondary }]}>⚖️ {ragDoc.recommendedIntake}</Text>
+                  {ragDoc.warnings ? <Text style={[styles.warning, { marginTop: 4 }]}>⚠️ {ragDoc.warnings}</Text> : null}
+                </View>
+              )}
+
+              {guidance.tips?.length > 0 && !ragDoc && (
                 <View style={styles.tipsWrap}>
                   {guidance.tips.map((tip, i) => (
                     <Text key={i} style={styles.tip}>💡 {tip}</Text>
                   ))}
                 </View>
               )}
-              {guidance.warnings?.length > 0 && (
+              {guidance.warnings?.length > 0 && !ragDoc && (
                 <View style={styles.tipsWrap}>
                   {guidance.warnings.map((w, i) => (
                     <Text key={i} style={styles.warning}>⚠️ {w}</Text>

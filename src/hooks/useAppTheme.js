@@ -22,11 +22,11 @@ export function useAppTheme() {
     accentDark: COLORS.accentDark,
     
     // Dynamic theme background and surface cards
-    background: isDark ? '#090D16' : '#F8FAFC',
+    background: isDark ? '#090D16' : '#f1f2ec',
     surface: isDark ? '#151F32' : '#FFFFFF',
     surfaceAlt: isDark ? '#0F172A' : '#F1F5F9',
     card: isDark ? '#151F32' : '#FFFFFF',
-    cardAlt: isDark ? '#0F172A' : '#F8FAFC',
+    cardAlt: isDark ? '#0F172A' : '#f1f2ec',
     
     // Text color states
     textPrimary: isDark ? '#F8FAFC' : '#0F172A',

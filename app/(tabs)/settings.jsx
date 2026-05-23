@@ -138,6 +138,10 @@ export default function SettingsScreen() {
             <Text style={[styles.accountLabel, { color: colors.textPrimary }]}>👤 Full Name</Text>
             <Text style={[styles.accountValue, { color: colors.textSecondary }]}>{profile.name || user?.name || 'Not set'}</Text>
           </View>
+          <View style={[styles.accountDivider, { backgroundColor: colors.border }]} />
+          <TouchableOpacity style={[styles.editProfileBtn, { backgroundColor: colors.primarySurface || COLORS.primarySurface }]} onPress={() => router.push('/profile')}>
+            <Text style={[styles.editProfileBtnText, { color: colors.primaryDark || COLORS.primaryDark }]}>✏️ Edit Profile Details</Text>
+          </TouchableOpacity>
         </View>
 
         {/* Voice settings */}
@@ -260,4 +264,15 @@ const styles = StyleSheet.create({
     marginBottom: SPACING.xxxl,
   },
   logoutText: { fontSize: TYPOGRAPHY.body, fontWeight: TYPOGRAPHY.semiBold, color: COLORS.error },
+  editProfileBtn: {
+    paddingVertical: SPACING.md,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: RADIUS.md,
+    marginTop: SPACING.sm,
+  },
+  editProfileBtnText: {
+    fontSize: TYPOGRAPHY.bodySmall,
+    fontWeight: TYPOGRAPHY.bold,
+  },
 });

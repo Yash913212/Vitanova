@@ -12,6 +12,7 @@ import { useRouter } from 'expo-router';
 import { useAuth } from '../src/providers/AuthProvider';
 import { useProfile } from '../src/providers/ProfileProvider';
 import { COLORS, TYPOGRAPHY, SPACING, RADIUS, SHADOWS } from '../src/utils/theme';
+import { useAppTheme } from '../src/hooks/useAppTheme';
 
 export default function SignupScreen() {
   const [name, setName] = useState('');
@@ -23,6 +24,7 @@ export default function SignupScreen() {
   const router = useRouter();
   const { signup } = useAuth();
   const { updateProfile } = useProfile();
+  const { isDark, colors, toggleTheme } = useAppTheme();
 
   // Animation refs
   const bgGradient = useRef(new Animated.Value(0)).current;
@@ -47,35 +49,33 @@ export default function SignupScreen() {
   const particle3 = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
-    // Main entrance sequence
-    Animated.sequence([
+    // Main entrance sequence: Rapid staggered glide-in
+    Animated.stagger(30, [
       // Logo bounce
-      Animated.spring(logoScale, { toValue: 1, friction: 4, tension: 50, useNativeDriver: true }),
+      Animated.spring(logoScale, { toValue: 1, friction: 5, tension: 180, useNativeDriver: true }),
       // Title
       Animated.parallel([
-        Animated.timing(titleFade, { toValue: 1, duration: 400, useNativeDriver: true }),
-        Animated.spring(titleSlide, { toValue: 0, friction: 8, tension: 80, useNativeDriver: true }),
+        Animated.timing(titleFade, { toValue: 1, duration: 200, useNativeDriver: true }),
+        Animated.spring(titleSlide, { toValue: 0, friction: 7, tension: 180, useNativeDriver: true }),
       ]),
       // Subtitle
-      Animated.timing(subtitleFade, { toValue: 1, duration: 300, useNativeDriver: true }),
+      Animated.timing(subtitleFade, { toValue: 1, duration: 200, useNativeDriver: true }),
       // Card
       Animated.parallel([
-        Animated.timing(cardFade, { toValue: 1, duration: 400, useNativeDriver: true }),
-        Animated.spring(cardSlide, { toValue: 0, friction: 7, tension: 60, useNativeDriver: true }),
+        Animated.timing(cardFade, { toValue: 1, duration: 200, useNativeDriver: true }),
+        Animated.spring(cardSlide, { toValue: 0, friction: 7, tension: 180, useNativeDriver: true }),
       ]),
       // Fields stagger
-      Animated.stagger(120, [
-        Animated.spring(field1, { toValue: 1, friction: 8, tension: 80, useNativeDriver: true }),
-        Animated.spring(field2, { toValue: 1, friction: 8, tension: 80, useNativeDriver: true }),
-        Animated.spring(field3, { toValue: 1, friction: 8, tension: 80, useNativeDriver: true }),
-        Animated.spring(field4, { toValue: 1, friction: 8, tension: 80, useNativeDriver: true }),
-      ]),
+      Animated.spring(field1, { toValue: 1, friction: 7, tension: 180, useNativeDriver: true }),
+      Animated.spring(field2, { toValue: 1, friction: 7, tension: 180, useNativeDriver: true }),
+      Animated.spring(field3, { toValue: 1, friction: 7, tension: 180, useNativeDriver: true }),
+      Animated.spring(field4, { toValue: 1, friction: 7, tension: 180, useNativeDriver: true }),
       // Button + footer
       Animated.parallel([
-        Animated.spring(btnFade, { toValue: 1, friction: 8, tension: 80, useNativeDriver: true }),
-        Animated.spring(btnSlide, { toValue: 0, friction: 8, tension: 80, useNativeDriver: true }),
-        Animated.timing(footerFade, { toValue: 1, duration: 400, useNativeDriver: true }),
+        Animated.spring(btnFade, { toValue: 1, friction: 7, tension: 180, useNativeDriver: true }),
+        Animated.spring(btnSlide, { toValue: 0, friction: 7, tension: 180, useNativeDriver: true }),
       ]),
+      Animated.timing(footerFade, { toValue: 1, duration: 200, useNativeDriver: true }),
     ]).start();
 
     // Floating logo animation
@@ -128,7 +128,7 @@ export default function SignupScreen() {
       await signup({ name: name.trim(), email: email.trim().toLowerCase(), password });
       // Also save name to profile
       await updateProfile({ name: name.trim(), email: email.trim().toLowerCase() });
-      router.replace('/(tabs)');
+      router.replace('/profile?setup=true');
     } catch (e) {
       Alert.alert('Error', e.message);
     } finally {
@@ -137,7 +137,13 @@ export default function SignupScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
+      {/* Theme Toggle */}
+      <TouchableOpacity activeOpacity={0.8} onPress={toggleTheme} style={[styles.themeToggle, { backgroundColor: colors.surfaceAlt, borderColor: colors.border }]}>
+        <Text style={styles.themeIcon}>{isDark ? '🌙' : '☀️'}</Text>
+        <Text style={[styles.themeToggleText, { color: colors.textPrimary }]}>{isDark ? 'Dark Mode' : 'Light Mode'}</Text>
+      </TouchableOpacity>
+
       {/* Floating particles */}
       <Animated.View style={[styles.particle, styles.particle1, {
         opacity: particle1.interpolate({ inputRange: [0, 0.5, 1], outputRange: [0.2, 0.6, 0.2] }),
@@ -172,50 +178,50 @@ export default function SignupScreen() {
           {/* Title */}
           <Animated.Text style={[
             styles.title,
-            { opacity: titleFade, transform: [{ translateY: titleSlide }] },
+            { opacity: titleFade, transform: [{ translateY: titleSlide }], color: colors.textPrimary },
           ]}>
             Create Account
           </Animated.Text>
-          <Animated.Text style={[styles.subtitle, { opacity: subtitleFade }]}>
+          <Animated.Text style={[styles.subtitle, { opacity: subtitleFade, color: colors.textSecondary }]}>
             Start your wellness journey with VitaNova
           </Animated.Text>
 
           {/* Progress dots */}
           <Animated.View style={[styles.progressRow, { opacity: subtitleFade }]}>
             <View style={[styles.progressDot, styles.progressActive]} />
-            <View style={[styles.progressLine, name && email ? styles.progressLineActive : {}]} />
-            <View style={[styles.progressDot, name && email ? styles.progressActive : {}]} />
-            <View style={[styles.progressLine, password.length >= 6 ? styles.progressLineActive : {}]} />
-            <View style={[styles.progressDot, password.length >= 6 && confirmPassword === password ? styles.progressActive : {}]} />
+            <View style={[styles.progressLine, { backgroundColor: colors.border }, name && email ? styles.progressLineActive : {}]} />
+            <View style={[styles.progressDot, { backgroundColor: colors.border }, name && email ? styles.progressActive : {}]} />
+            <View style={[styles.progressLine, { backgroundColor: colors.border }, password.length >= 6 ? styles.progressLineActive : {}]} />
+            <View style={[styles.progressDot, { backgroundColor: colors.border }, password.length >= 6 && confirmPassword === password ? styles.progressActive : {}]} />
           </Animated.View>
 
           {/* Card */}
           <Animated.View style={[
             styles.card,
-            { opacity: cardFade, transform: [{ translateY: cardSlide }] },
+            { opacity: cardFade, transform: [{ translateY: cardSlide }], backgroundColor: colors.surface },
           ]}>
             {/* Name */}
             <Animated.View style={[styles.inputGroup, fieldAnim(field1)]}>
-              <Text style={styles.label}>👤 Full Name</Text>
+              <Text style={[styles.label, { color: colors.textPrimary }]}>👤 Full Name</Text>
               <TextInput
-                style={styles.input}
+                style={[styles.input, { backgroundColor: colors.surfaceAlt, color: colors.textPrimary, borderColor: colors.border }]}
                 value={name}
                 onChangeText={setName}
                 placeholder="John Doe"
-                placeholderTextColor={COLORS.textTertiary}
+                placeholderTextColor={colors.textTertiary}
                 autoCapitalize="words"
               />
             </Animated.View>
 
             {/* Email */}
             <Animated.View style={[styles.inputGroup, fieldAnim(field2)]}>
-              <Text style={styles.label}>📧 Email</Text>
+              <Text style={[styles.label, { color: colors.textPrimary }]}>📧 Email</Text>
               <TextInput
-                style={styles.input}
+                style={[styles.input, { backgroundColor: colors.surfaceAlt, color: colors.textPrimary, borderColor: colors.border }]}
                 value={email}
                 onChangeText={setEmail}
                 placeholder="you@example.com"
-                placeholderTextColor={COLORS.textTertiary}
+                placeholderTextColor={colors.textTertiary}
                 keyboardType="email-address"
                 autoCapitalize="none"
                 autoCorrect={false}
@@ -224,14 +230,14 @@ export default function SignupScreen() {
 
             {/* Password */}
             <Animated.View style={[styles.inputGroup, fieldAnim(field3)]}>
-              <Text style={styles.label}>🔒 Password</Text>
+              <Text style={[styles.label, { color: colors.textPrimary }]}>🔒 Password</Text>
               <View style={styles.passwordRow}>
                 <TextInput
-                  style={[styles.input, styles.passwordInput]}
+                  style={[styles.input, styles.passwordInput, { backgroundColor: colors.surfaceAlt, color: colors.textPrimary, borderColor: colors.border }]}
                   value={password}
                   onChangeText={setPassword}
                   placeholder="Min 6 characters"
-                  placeholderTextColor={COLORS.textTertiary}
+                  placeholderTextColor={colors.textTertiary}
                   secureTextEntry={!showPassword}
                   autoCapitalize="none"
                 />
@@ -255,17 +261,18 @@ export default function SignupScreen() {
 
             {/* Confirm Password */}
             <Animated.View style={[styles.inputGroup, fieldAnim(field4)]}>
-              <Text style={styles.label}>🔐 Confirm Password</Text>
+              <Text style={[styles.label, { color: colors.textPrimary }]}>🔐 Confirm Password</Text>
               <TextInput
                 style={[
                   styles.input,
+                  { backgroundColor: colors.surfaceAlt, color: colors.textPrimary, borderColor: colors.border },
                   confirmPassword.length > 0 && confirmPassword !== password && styles.inputError,
                   confirmPassword.length > 0 && confirmPassword === password && styles.inputSuccess,
                 ]}
                 value={confirmPassword}
                 onChangeText={setConfirmPassword}
                 placeholder="Re-enter password"
-                placeholderTextColor={COLORS.textTertiary}
+                placeholderTextColor={colors.textTertiary}
                 secureTextEntry={!showPassword}
                 autoCapitalize="none"
               />
@@ -296,7 +303,7 @@ export default function SignupScreen() {
 
           {/* Footer */}
           <Animated.View style={[styles.footer, { opacity: footerFade }]}>
-            <Text style={styles.footerText}>Already have an account? </Text>
+            <Text style={[styles.footerText, { color: colors.textSecondary }]}>Already have an account? </Text>
             <TouchableOpacity onPress={() => router.push('/login')}>
               <Text style={styles.footerLink}>Sign In</Text>
             </TouchableOpacity>
@@ -306,19 +313,19 @@ export default function SignupScreen() {
           <Animated.View style={[styles.features, { opacity: footerFade }]}>
             <View style={styles.featureItem}>
               <Text style={styles.featureIcon}>📷</Text>
-              <Text style={styles.featureText}>Scan Food</Text>
+              <Text style={[styles.featureText, { color: colors.textTertiary }]}>Scan Food</Text>
             </View>
             <View style={styles.featureItem}>
               <Text style={styles.featureIcon}>🤖</Text>
-              <Text style={styles.featureText}>AI Chat</Text>
+              <Text style={[styles.featureText, { color: colors.textTertiary }]}>AI Chat</Text>
             </View>
             <View style={styles.featureItem}>
               <Text style={styles.featureIcon}>🥗</Text>
-              <Text style={styles.featureText}>Diet Plans</Text>
+              <Text style={[styles.featureText, { color: colors.textTertiary }]}>Diet Plans</Text>
             </View>
             <View style={styles.featureItem}>
               <Text style={styles.featureIcon}>🔊</Text>
-              <Text style={styles.featureText}>Voice</Text>
+              <Text style={[styles.featureText, { color: colors.textTertiary }]}>Voice</Text>
             </View>
           </Animated.View>
         </ScrollView>
@@ -329,6 +336,15 @@ export default function SignupScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.background },
+  themeToggle: {
+    position: 'absolute', top: 52, right: 20, zIndex: 10,
+    flexDirection: 'row', alignItems: 'center',
+    paddingHorizontal: 12, paddingVertical: 8,
+    borderRadius: 20, borderWidth: 1.5,
+    ...SHADOWS.sm,
+  },
+  themeIcon: { fontSize: 16, marginRight: 6 },
+  themeToggleText: { fontSize: TYPOGRAPHY.caption, fontWeight: TYPOGRAPHY.semiBold },
   flex: { flex: 1 },
   scroll: {
     flexGrow: 1,

@@ -1,107 +1,72 @@
+/**
+ * NutriVision AI — History Provider
+ * User-scoped: each account gets its own isolated scan history.
+ */
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import { 
-  addScanHistoryEntry, 
-  getScanHistory, 
-  deleteHistoryItem, 
-  clearScanHistory 
-} from '../database/queries/history.js';
-import { DUPLICATE_WINDOW_MS } from '../utils/constants';
-import { syncData } from '../services/supabase/syncService.js';
-import { supabase } from '../services/supabase/client.js';
+import { getData, setData, getUserKey } from '../services/storageService';
+import { STORAGE_KEYS, DUPLICATE_WINDOW_MS } from '../utils/constants';
+import { generateId } from '../utils/helpers';
+import { useAuth } from './AuthProvider';
 
 const HistoryContext = createContext(null);
 
 export function HistoryProvider({ children }) {
+  const { user } = useAuth();
+  const userEmail = user?.email || '';
   const [history, setHistory] = useState([]);
   const [loaded, setLoaded] = useState(false);
 
-  // Load history from SQLite on startup
+  // Reload history whenever the user changes
   useEffect(() => {
+    let cancelled = false;
     (async () => {
-      const saved = await getScanHistory();
-      setHistory(saved || []);
-      setLoaded(true);
+      setLoaded(false);
+      const key = getUserKey(STORAGE_KEYS.HISTORY, userEmail);
+      const saved = await getData(key);
+      if (!cancelled) {
+        setHistory(saved && Array.isArray(saved) ? saved : []);
+        setLoaded(true);
+      }
     })();
-  }, []);
+    return () => { cancelled = true; };
+  }, [userEmail]);
 
   const addEntry = useCallback(async (entry) => {
-    // Determine names and fields for compatibility
-    const foodName = entry.food_name || entry.item || 'Unknown Food';
-    const imageUri = entry.image_uri || entry.imageUri || '';
-    const nutritionSnapshot = entry.nutrition_snapshot || entry.nutritionFacts || {};
-    const aiResponse = entry.ai_response || entry.response || '';
-    const confidence = entry.confidence || 0.9;
+    setHistory((prev) => {
+      // Duplicate detection
+      const isDuplicate = prev.some(
+        (h) =>
+          h.item === entry.item &&
+          Date.now() - h.timestamp < DUPLICATE_WINDOW_MS
+      );
+      if (isDuplicate) return prev;
 
-    // Duplicate detection in local state to avoid rapid-click insertions
-    const isDuplicate = history.some(
-      (h) =>
-        h.food_name === foodName &&
-        Date.now() - new Date(h.timestamp).getTime() < DUPLICATE_WINDOW_MS
-    );
-    if (isDuplicate) return null;
-
-    const id = await addScanHistoryEntry(
-      foodName,
-      imageUri,
-      nutritionSnapshot,
-      aiResponse,
-      confidence,
-      0 // Unsynced locally
-    );
-
-    if (id !== null) {
-      const next = await getScanHistory();
-      setHistory(next);
-      // Run background sync
-      syncData();
-      return id;
-    }
-    return null;
-  }, [history]);
+      const newEntry = {
+        id: generateId(),
+        timestamp: Date.now(),
+        ...entry,
+      };
+      const next = [newEntry, ...prev].slice(0, 200); // Keep max 200
+      const key = getUserKey(STORAGE_KEYS.HISTORY, userEmail);
+      setData(key, next);
+      return next;
+    });
+  }, [userEmail]);
 
   const deleteEntry = useCallback(async (id) => {
-    const item = history.find(h => h.id === id);
-    const success = await deleteHistoryItem(id);
-    if (success) {
-      const next = await getScanHistory();
-      setHistory(next);
-      
-      // Cascade delete on Supabase cloud if online and item matches
-      if (item && item.timestamp) {
-        (async () => {
-          try {
-            await supabase.from('scan_history').delete().eq('timestamp', item.timestamp);
-          } catch (e) {
-            console.warn('[HistoryProvider] Remote deletion failed:', e.message);
-          }
-        })();
-      }
-      return true;
-    }
-    return false;
-  }, [history]);
+    setHistory((prev) => {
+      const next = prev.filter((h) => h.id !== id);
+      const key = getUserKey(STORAGE_KEYS.HISTORY, userEmail);
+      setData(key, next);
+      return next;
+    });
+  }, [userEmail]);
 
   const clearHistory = useCallback(async () => {
-    const success = await clearScanHistory();
-    if (success) {
-      setHistory([]);
-      
-      // Remote deletion on Supabase cloud
-      (async () => {
-        try {
-          const { data: { session } } = await supabase.auth.getSession();
-          if (session && session.user) {
-            await supabase.from('scan_history').delete().eq('user_id', session.user.id);
-          }
-        } catch (e) {
-          console.warn('[HistoryProvider] Remote clear history failed:', e.message);
-        }
-      })();
-      return true;
-    }
-    return false;
-  }, []);
-
+    setHistory([]);
+    const key = getUserKey(STORAGE_KEYS.HISTORY, userEmail);
+    await setData(key, []);
+  }, [userEmail]);
 
   const searchHistory = useCallback(
     (query) => {
@@ -109,8 +74,8 @@ export function HistoryProvider({ children }) {
       const q = query.toLowerCase();
       return history.filter(
         (h) =>
-          h.food_name?.toLowerCase().includes(q) ||
-          h.ai_response?.toLowerCase().includes(q)
+          h.item?.toLowerCase().includes(q) ||
+          h.summary?.toLowerCase().includes(q)
       );
     },
     [history]

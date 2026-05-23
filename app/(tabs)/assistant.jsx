@@ -11,7 +11,6 @@ import { useSettings } from '../../src/providers/SettingsProvider';
 import { useNutrition } from '../../src/providers/NutritionProvider';
 import { speak, stop, isSpeaking } from '../../src/services/voiceService';
 import ChatBubble from '../../src/components/ChatBubble';
-import FloatingOrb from '../../src/components/FloatingOrb';
 import EmptyState from '../../src/components/EmptyState';
 import VoiceWaveform from '../../src/components/VoiceWaveform';
 import LanguageSwitcher from '../../src/components/LanguageSwitcher';
@@ -233,13 +232,7 @@ export default function AssistantScreen() {
         contentContainerStyle={styles.msgList}
         onContentSizeChange={() => flatListRef.current?.scrollToEnd()}
         ListEmptyComponent={
-          <View style={{ alignItems: 'center', marginTop: 60 }}>
-            <FloatingOrb isActive={isTyping || isSpeakingNow} size="large" />
-            <Text style={[styles.emptyTitle, { color: colors.textPrimary }]}>How can I help you today?</Text>
-            <Text style={[styles.emptySub, { color: colors.textSecondary }]}>
-              Ask me about caloric indices, food scanning or custom wellness programs.
-            </Text>
-          </View>
+          <EmptyState icon="💬" title="Start a conversation" message="Ask about nutrition, diet, or health" />
         }
       />
 
@@ -455,19 +448,4 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '600',
   },
-  emptyTitle: {
-    fontSize: 22,
-    fontWeight: TYPOGRAPHY.bold,
-    marginTop: 20,
-    textAlign: 'center',
-    fontFamily: TYPOGRAPHY.poppinsBold
-  },
-  emptySub: {
-    fontSize: 14,
-    color: COLORS.textSecondary,
-    textAlign: 'center',
-    paddingHorizontal: 40,
-    marginTop: 8,
-    lineHeight: 20
-  }
 });

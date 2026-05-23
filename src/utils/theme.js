@@ -24,11 +24,11 @@ export const COLORS = {
   secondarySurface: '#EEF2FF',
 
   // Backgrounds
-  background: '#F8FAFC',
+  background: '#f1f2ec',
   surface: '#FFFFFF',
   surfaceAlt: '#F1F5F9',
   card: '#FFFFFF',
-  cardAlt: '#F8FAFC',
+  cardAlt: '#f1f2ec',
 
   // Text
   textPrimary: '#0F172A',

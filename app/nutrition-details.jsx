@@ -11,6 +11,7 @@ import NutritionCard from '../src/components/NutritionCard';
 import VoiceButton from '../src/components/VoiceButton';
 import { getConfidenceLevel } from '../src/utils/helpers';
 import { COLORS, TYPOGRAPHY, SPACING, RADIUS, SHADOWS } from '../src/utils/theme';
+import { useAppTheme } from '../src/hooks/useAppTheme';
 
 export default function NutritionDetailsScreen() {
   const params = useLocalSearchParams();
@@ -19,6 +20,7 @@ export default function NutritionDetailsScreen() {
   const { getGuidance } = useNutrition();
   const { settings } = useSettings();
   const { queryKnowledge } = useKnowledge();
+  const { isDark, colors } = useAppTheme();
 
   const entry = useMemo(() => {
     try { return JSON.parse(params.data); }
@@ -46,8 +48,8 @@ export default function NutritionDetailsScreen() {
 
   if (!entry) {
     return (
-      <SafeAreaView style={styles.container}>
-        <Text style={styles.errorText}>No data available</Text>
+      <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
+        <Text style={[styles.errorText, { color: colors.textSecondary }]}>No data available</Text>
       </SafeAreaView>
     );
   }
@@ -59,11 +61,11 @@ export default function NutritionDetailsScreen() {
       : `${entry.item}. ${entry.summary}`;
 
   return (
-    <SafeAreaView style={styles.container}>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
         {/* Back button */}
         <TouchableOpacity style={styles.backBtn} onPress={() => router.back()}>
-          <Text style={styles.backText}>← Back</Text>
+          <Text style={[styles.backText, { color: colors.primary }]}>← Back</Text>
         </TouchableOpacity>
 
         {/* Image */}
@@ -74,8 +76,8 @@ export default function NutritionDetailsScreen() {
         {/* Header */}
         <View style={styles.header}>
           <View style={{ flex: 1 }}>
-            <Text style={styles.itemName}>{entry.item}</Text>
-            <Text style={styles.summary}>{entry.summary}</Text>
+            <Text style={[styles.itemName, { color: colors.textPrimary }]}>{entry.item}</Text>
+            <Text style={[styles.summary, { color: colors.textSecondary }]}>{entry.summary}</Text>
           </View>
           <View style={[styles.badge, { backgroundColor: confidence.color + '18' }]}>
             <Text style={[styles.badgeText, { color: confidence.color }]}>
@@ -88,9 +90,17 @@ export default function NutritionDetailsScreen() {
         {/* Caution Card */}
         {ragDoc?.warnings ? (
           <View style={styles.section}>
-            <View style={[styles.card, styles.warningCard]}>
-              <Text style={styles.warningTitle}>⚠️ Health Caution & Alert</Text>
-              <Text style={styles.warningText}>{ragDoc.warnings}</Text>
+            <View style={[
+              styles.card,
+              styles.warningCard,
+              {
+                backgroundColor: isDark ? 'rgba(239, 68, 68, 0.15)' : '#FFF7ED',
+                borderColor: isDark ? 'rgba(239, 68, 68, 0.35)' : '#FED7AA',
+                borderWidth: 1,
+              }
+            ]}>
+              <Text style={[styles.warningTitle, { color: isDark ? '#F87171' : '#C2410C' }]}>⚠️ Health Caution & Alert</Text>
+              <Text style={[styles.warningText, { color: isDark ? '#FEE2E2' : '#7C2D12' }]}>{ragDoc.warnings}</Text>
             </View>
           </View>
         ) : null}
@@ -98,28 +108,36 @@ export default function NutritionDetailsScreen() {
         {/* RAG-Powered AI Insights Card */}
         {ragDoc ? (
           <View style={styles.section}>
-            <View style={[styles.card, styles.insightCard]}>
+            <View style={[
+              styles.card,
+              styles.insightCard,
+              {
+                backgroundColor: colors.surface,
+                borderColor: isDark ? colors.border : colors.primary + '18',
+                borderWidth: 1,
+              }
+            ]}>
               <View style={styles.insightHeader}>
-                <Text style={styles.insightTitle}>🔬 Verified AI Insights</Text>
-                <View style={styles.ragBadge}>
-                  <Text style={styles.ragBadgeText}>RAG SECURE</Text>
+                <Text style={[styles.insightTitle, { color: colors.textPrimary }]}>🔬 Verified AI Insights</Text>
+                <View style={[styles.ragBadge, { backgroundColor: colors.primary + '12' }]}>
+                  <Text style={[styles.ragBadgeText, { color: colors.primary }]}>RAG SECURE</Text>
                 </View>
               </View>
-              <Text style={styles.cardText}>{ragDoc.benefits}</Text>
+              <Text style={[styles.cardText, { color: colors.textSecondary }]}>{ragDoc.benefits}</Text>
               
-              <View style={styles.insightRow}>
+              <View style={[styles.insightRow, { borderTopColor: colors.borderLight }]}>
                 <View style={styles.insightMetric}>
                   <Text style={styles.metricIcon}>⏰</Text>
                   <View style={{ flex: 1 }}>
-                    <Text style={styles.metricLabel}>IDEAL TIME</Text>
-                    <Text style={styles.metricValue}>{ragDoc.bestTime || 'Anytime'}</Text>
+                    <Text style={[styles.metricLabel, { color: colors.textTertiary }]}>IDEAL TIME</Text>
+                    <Text style={[styles.metricValue, { color: colors.textPrimary }]}>{ragDoc.bestTime || 'Anytime'}</Text>
                   </View>
                 </View>
                 <View style={styles.insightMetric}>
                   <Text style={styles.metricIcon}>📏</Text>
                   <View style={{ flex: 1 }}>
-                    <Text style={styles.metricLabel}>RECOMMENDED PORTION</Text>
-                    <Text style={styles.metricValue}>{ragDoc.recommendedIntake || 'Moderation'}</Text>
+                    <Text style={[styles.metricLabel, { color: colors.textTertiary }]}>RECOMMENDED PORTION</Text>
+                    <Text style={[styles.metricValue, { color: colors.textPrimary }]}>{ragDoc.recommendedIntake || 'Moderation'}</Text>
                   </View>
                 </View>
               </View>
@@ -129,9 +147,9 @@ export default function NutritionDetailsScreen() {
           /* Standard fallback benefits when RAG isn't matched */
           nutrition?.benefits && (
             <View style={styles.section}>
-              <View style={styles.card}>
-                <Text style={styles.cardTitle}>✨ Health Benefits</Text>
-                <Text style={styles.cardText}>{nutrition.benefits}</Text>
+              <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border, borderWidth: 1 }]}>
+                <Text style={[styles.cardTitle, { color: colors.textPrimary }]}>✨ Health Benefits</Text>
+                <Text style={[styles.cardText, { color: colors.textSecondary }]}>{nutrition.benefits}</Text>
               </View>
             </View>
           )
@@ -147,11 +165,11 @@ export default function NutritionDetailsScreen() {
         {/* AI Recommendations & Goal-Based Guidance */}
         {guidance && (
           <View style={styles.section}>
-            <View style={styles.card}>
-              <Text style={styles.cardTitle}>🤖 Personalized Advice</Text>
-              <Text style={styles.cardText}>{guidance.summary}</Text>
+            <View style={[styles.card, { backgroundColor: colors.surface, borderColor: colors.border, borderWidth: 1 }]}>
+              <Text style={[styles.cardTitle, { color: colors.textPrimary }]}>🤖 Personalized Advice</Text>
+              <Text style={[styles.cardText, { color: colors.textSecondary }]}>{guidance.summary}</Text>
               {guidance.tips?.map((t, i) => (
-                <Text key={i} style={styles.tip}>💡 {t}</Text>
+                <Text key={i} style={[styles.tip, { color: isDark ? colors.primaryLight : colors.primaryDark }]}>💡 {t}</Text>
               ))}
             </View>
           </View>
@@ -160,15 +178,15 @@ export default function NutritionDetailsScreen() {
         {/* Timing & Quantity (Standard fallback when RAG isn't matched) */}
         {!ragDoc && nutrition && (
           <View style={styles.row}>
-            <View style={[styles.miniCard, { flex: 1, marginRight: 8 }]}>
+            <View style={[styles.miniCard, { flex: 1, marginRight: 8, backgroundColor: colors.surface, borderColor: colors.border, borderWidth: 1 }]}>
               <Text style={styles.miniIcon}>⏰</Text>
-              <Text style={styles.miniLabel}>Best Time</Text>
-              <Text style={styles.miniValue}>{nutrition.bestTime}</Text>
+              <Text style={[styles.miniLabel, { color: colors.textTertiary }]}>Best Time</Text>
+              <Text style={[styles.miniValue, { color: colors.textPrimary }]}>{nutrition.bestTime}</Text>
             </View>
-            <View style={[styles.miniCard, { flex: 1 }]}>
+            <View style={[styles.miniCard, { flex: 1, backgroundColor: colors.surface, borderColor: colors.border, borderWidth: 1 }]}>
               <Text style={styles.miniIcon}>📏</Text>
-              <Text style={styles.miniLabel}>Quantity</Text>
-              <Text style={styles.miniValue}>{nutrition.recommendedQty}</Text>
+              <Text style={[styles.miniLabel, { color: colors.textTertiary }]}>Quantity</Text>
+              <Text style={[styles.miniValue, { color: colors.textPrimary }]}>{nutrition.recommendedQty}</Text>
             </View>
           </View>
         )}
@@ -176,7 +194,7 @@ export default function NutritionDetailsScreen() {
         {/* Related Foods Carousel */}
         {ragDoc?.relatedFoods && ragDoc.relatedFoods.length > 0 && (
           <View style={styles.section}>
-            <Text style={styles.carouselSectionTitle}>🌱 Related & Complementary Foods</Text>
+            <Text style={[styles.carouselSectionTitle, { color: colors.textPrimary }]}>🌱 Related & Complementary Foods</Text>
             <ScrollView
               horizontal
               showsHorizontalScrollIndicator={false}
@@ -185,7 +203,7 @@ export default function NutritionDetailsScreen() {
               {ragDoc.relatedFoods.map((food, i) => (
                 <TouchableOpacity
                   key={i}
-                  style={[styles.carouselCard, { borderColor: COLORS.border }]}
+                  style={[styles.carouselCard, { backgroundColor: colors.surface, borderColor: colors.border }]}
                   activeOpacity={0.8}
                   onPress={() => {
                     router.push({
@@ -197,9 +215,9 @@ export default function NutritionDetailsScreen() {
                   <Text style={styles.carouselFoodIcon}>
                     {food.category === 'fruits' ? '🍎' : food.category === 'vegetables' ? '🥦' : '🥗'}
                   </Text>
-                  <Text style={styles.carouselFoodTitle}>{food.title}</Text>
-                  <Text style={styles.carouselFoodCat}>{food.category}</Text>
-                  <Text style={styles.carouselActionText}>Ask AI ➔</Text>
+                  <Text style={[styles.carouselFoodTitle, { color: colors.textPrimary }]}>{food.title}</Text>
+                  <Text style={[styles.carouselFoodCat, { color: colors.textTertiary }]}>{food.category}</Text>
+                  <Text style={[styles.carouselActionText, { color: colors.primary }]}>Ask AI ➔</Text>
                 </TouchableOpacity>
               ))}
             </ScrollView>
@@ -213,46 +231,40 @@ export default function NutritionDetailsScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: COLORS.background },
+  container: { flex: 1 },
   scroll: { padding: SPACING.lg },
-  errorText: { fontSize: TYPOGRAPHY.body, color: COLORS.textSecondary, textAlign: 'center', marginTop: 100 },
+  errorText: { fontSize: TYPOGRAPHY.body, textAlign: 'center', marginTop: 100 },
   backBtn: { marginBottom: SPACING.md },
-  backText: { fontSize: TYPOGRAPHY.body, color: COLORS.primary, fontWeight: TYPOGRAPHY.semiBold },
+  backText: { fontSize: TYPOGRAPHY.body, fontWeight: TYPOGRAPHY.semiBold },
   image: { width: '100%', height: 220, borderRadius: RADIUS.lg, marginBottom: SPACING.lg },
   header: { flexDirection: 'row', alignItems: 'center', marginBottom: SPACING.lg, gap: SPACING.sm },
-  itemName: { fontSize: TYPOGRAPHY.h2, fontWeight: TYPOGRAPHY.bold, color: COLORS.textPrimary, textTransform: 'capitalize' },
-  summary: { fontSize: TYPOGRAPHY.bodySmall, color: COLORS.textSecondary, marginTop: 2 },
+  itemName: { fontSize: TYPOGRAPHY.h2, fontWeight: TYPOGRAPHY.bold, textTransform: 'capitalize' },
+  summary: { fontSize: TYPOGRAPHY.bodySmall, marginTop: 2 },
   badge: { paddingHorizontal: 10, paddingVertical: 6, borderRadius: RADIUS.md },
   badgeText: { fontSize: TYPOGRAPHY.body, fontWeight: TYPOGRAPHY.bold },
   section: { marginBottom: SPACING.lg },
-  card: { backgroundColor: COLORS.surface, borderRadius: RADIUS.lg, padding: SPACING.lg, ...SHADOWS.md },
-  cardTitle: { fontSize: TYPOGRAPHY.h4, fontWeight: TYPOGRAPHY.bold, color: COLORS.textPrimary, marginBottom: SPACING.sm },
-  cardText: { fontSize: TYPOGRAPHY.bodySmall, color: COLORS.textSecondary, lineHeight: 22 },
-  tip: { fontSize: TYPOGRAPHY.caption, color: COLORS.primaryDark, marginTop: 6 },
+  card: { borderRadius: RADIUS.lg, padding: SPACING.lg, ...SHADOWS.md },
+  cardTitle: { fontSize: TYPOGRAPHY.h4, fontWeight: TYPOGRAPHY.bold, marginBottom: SPACING.sm },
+  cardText: { fontSize: TYPOGRAPHY.bodySmall, lineHeight: 22 },
+  tip: { fontSize: TYPOGRAPHY.caption, marginTop: 6 },
   row: { flexDirection: 'row', marginBottom: SPACING.lg },
-  miniCard: { backgroundColor: COLORS.surface, borderRadius: RADIUS.lg, padding: SPACING.md, alignItems: 'center', ...SHADOWS.sm },
+  miniCard: { borderRadius: RADIUS.lg, padding: SPACING.md, alignItems: 'center', ...SHADOWS.sm },
   miniIcon: { fontSize: 28, marginBottom: 4 },
-  miniLabel: { fontSize: TYPOGRAPHY.caption, color: COLORS.textTertiary },
-  miniValue: { fontSize: TYPOGRAPHY.caption, color: COLORS.textPrimary, fontWeight: TYPOGRAPHY.medium, textAlign: 'center', marginTop: 4 },
+  miniLabel: { fontSize: TYPOGRAPHY.caption },
+  miniValue: { fontSize: TYPOGRAPHY.caption, fontWeight: TYPOGRAPHY.medium, textAlign: 'center', marginTop: 4 },
   warningCard: {
-    backgroundColor: '#FFF7ED',
-    borderColor: '#FED7AA',
     borderWidth: 1,
   },
   warningTitle: {
     fontSize: 14,
     fontWeight: '700',
-    color: '#C2410C',
     marginBottom: 4,
   },
   warningText: {
     fontSize: 12,
-    color: '#7C2D12',
     lineHeight: 18,
   },
   insightCard: {
-    backgroundColor: COLORS.surface,
-    borderColor: COLORS.primary + '18',
     borderWidth: 1,
   },
   insightHeader: {
@@ -264,18 +276,15 @@ const styles = StyleSheet.create({
   insightTitle: {
     fontSize: 16,
     fontWeight: '700',
-    color: COLORS.textPrimary,
   },
   ragBadge: {
     paddingHorizontal: 8,
     paddingVertical: 2,
     borderRadius: 4,
-    backgroundColor: COLORS.primary + '12',
   },
   ragBadgeText: {
     fontSize: 9,
     fontWeight: '800',
-    color: COLORS.primary,
     letterSpacing: 0.5,
   },
   insightRow: {
@@ -283,7 +292,6 @@ const styles = StyleSheet.create({
     marginTop: SPACING.md,
     paddingTop: SPACING.md,
     borderTopWidth: 1,
-    borderTopColor: COLORS.borderLight,
     gap: SPACING.md,
   },
   insightMetric: {
@@ -297,17 +305,14 @@ const styles = StyleSheet.create({
   },
   metricLabel: {
     fontSize: 10,
-    color: COLORS.textTertiary,
   },
   metricValue: {
     fontSize: 12,
     fontWeight: '600',
-    color: COLORS.textPrimary,
   },
   carouselSectionTitle: {
     fontSize: 15,
     fontWeight: '700',
-    color: COLORS.textPrimary,
     marginBottom: SPACING.sm,
     marginTop: SPACING.xs,
   },
@@ -317,7 +322,6 @@ const styles = StyleSheet.create({
   },
   carouselCard: {
     width: 120,
-    backgroundColor: COLORS.surface,
     borderRadius: RADIUS.md,
     padding: SPACING.sm,
     alignItems: 'center',
@@ -331,12 +335,10 @@ const styles = StyleSheet.create({
   carouselFoodTitle: {
     fontSize: 12,
     fontWeight: '600',
-    color: COLORS.textPrimary,
     textAlign: 'center',
   },
   carouselFoodCat: {
     fontSize: 9,
-    color: COLORS.textTertiary,
     textTransform: 'uppercase',
     marginTop: 2,
     marginBottom: 6,
@@ -344,6 +346,5 @@ const styles = StyleSheet.create({
   carouselActionText: {
     fontSize: 10,
     fontWeight: '700',
-    color: COLORS.primary,
   },
 });

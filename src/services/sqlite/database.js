@@ -1,16 +1,92 @@
 /**
- * NutriVision AI — SQLite Database Manager
+ * VitaNova AI — SQLite Database Manager
  * Managed local storage for caching, offline sync queue, and local food directory.
+ * Web platform gracefully falls back to persistent localStorage to prevent WebAssembly/OPFS worker crashes.
  */
+import { Platform } from 'react-native';
 import * as SQLite from 'expo-sqlite';
 import NUTRITION_DB from '../../data/nutritionDB';
 
 let dbInstance = null;
 
+// LocalStorage Helper Keys for Web Platform Fallback
+const WEBLOCALSTORAGE_FAVS_KEY = 'vitanova_favorites';
+const WEBLOCALSTORAGE_CACHE_KEY = 'vitanova_nutrition_cache';
+const WEBLOCALSTORAGE_UPLOADS_KEY = 'vitanova_pending_uploads';
+
+function getWebFavorites() {
+  try {
+    if (typeof window !== 'undefined' && window.localStorage) {
+      const favs = window.localStorage.getItem(WEBLOCALSTORAGE_FAVS_KEY);
+      return favs ? JSON.parse(favs) : [];
+    }
+  } catch (e) {
+    console.warn('[SQLite DB Web] Failed to read favorites from localStorage:', e);
+  }
+  return [];
+}
+
+function saveWebFavorites(favs) {
+  try {
+    if (typeof window !== 'undefined' && window.localStorage) {
+      window.localStorage.setItem(WEBLOCALSTORAGE_FAVS_KEY, JSON.stringify(favs));
+    }
+  } catch (e) {
+    console.warn('[SQLite DB Web] Failed to save favorites to localStorage:', e);
+  }
+}
+
+function getWebCache() {
+  try {
+    if (typeof window !== 'undefined' && window.localStorage) {
+      const cache = window.localStorage.getItem(WEBLOCALSTORAGE_CACHE_KEY);
+      return cache ? JSON.parse(cache) : {};
+    }
+  } catch (e) {
+    console.warn('[SQLite DB Web] Failed to read cache from localStorage:', e);
+  }
+  return {};
+}
+
+function saveWebCache(cache) {
+  try {
+    if (typeof window !== 'undefined' && window.localStorage) {
+      window.localStorage.setItem(WEBLOCALSTORAGE_CACHE_KEY, JSON.stringify(cache));
+    }
+  } catch (e) {
+    console.warn('[SQLite DB Web] Failed to save cache to localStorage:', e);
+  }
+}
+
+function getWebUploads() {
+  try {
+    if (typeof window !== 'undefined' && window.localStorage) {
+      const uploads = window.localStorage.getItem(WEBLOCALSTORAGE_UPLOADS_KEY);
+      return uploads ? JSON.parse(uploads) : [];
+    }
+  } catch (e) {
+    console.warn('[SQLite DB Web] Failed to read uploads from localStorage:', e);
+  }
+  return [];
+}
+
+function saveWebUploads(uploads) {
+  try {
+    if (typeof window !== 'undefined' && window.localStorage) {
+      window.localStorage.setItem(WEBLOCALSTORAGE_UPLOADS_KEY, JSON.stringify(uploads));
+    }
+  } catch (e) {
+    console.warn('[SQLite DB Web] Failed to save uploads to localStorage:', e);
+  }
+}
+
 /**
  * Get or open the SQLite database instance asynchronously.
  */
 export async function getDB() {
+  if (Platform.OS === 'web') {
+    return null;
+  }
   if (dbInstance) return dbInstance;
   dbInstance = await SQLite.openDatabaseAsync('vitanova.db');
   return dbInstance;
@@ -20,6 +96,11 @@ export async function getDB() {
  * Initialize all required SQLite tables.
  */
 export async function initDatabaseAsync() {
+  if (Platform.OS === 'web') {
+    console.log('[SQLite DB] Web platform detected. Operating in high-performance localStorage hybrid mode.');
+    return;
+  }
+
   const db = await getDB();
 
   // Create tables using execAsync
@@ -74,6 +155,7 @@ export async function initDatabaseAsync() {
  * Pre-populates the SQLite database with foods from static nutritionDB.js.
  */
 async function prePopulateFoodNutrition(db) {
+  if (Platform.OS === 'web') return;
   try {
     const rowCountResult = await db.getFirstAsync('SELECT COUNT(*) as count FROM food_nutrition;');
     const count = rowCountResult ? rowCountResult.count : 0;
@@ -120,6 +202,34 @@ async function prePopulateFoodNutrition(db) {
  */
 export async function searchOfflineFood(query) {
   if (!query) return [];
+
+  if (Platform.OS === 'web') {
+    const lowerQuery = query.toLowerCase().trim();
+    return Object.entries(NUTRITION_DB)
+      .filter(([key, food]) => 
+        (food.name || '').toLowerCase().includes(lowerQuery) || 
+        (food.category || '').toLowerCase().includes(lowerQuery) || 
+        key.toLowerCase().includes(lowerQuery)
+      )
+      .slice(0, 10)
+      .map(([key, food]) => ({
+        key,
+        name: food.name || '',
+        category: food.category || '',
+        calories: food.calories || 0,
+        protein: food.protein || 0,
+        carbs: food.carbs || 0,
+        fiber: food.fiber || 0,
+        fats: food.fats || 0,
+        vitamins: food.vitamins || [],
+        minerals: food.minerals || [],
+        benefits: food.benefits || '',
+        bestTime: food.bestTime || '',
+        recommendedQty: food.recommendedQty || '',
+        hydration: food.hydration || 0
+      }));
+  }
+
   const db = await getDB();
   const lowerQuery = `%${query.toLowerCase().trim()}%`;
   
@@ -166,6 +276,20 @@ export async function searchOfflineFood(query) {
  */
 export async function getCachedNutrition(queryKey) {
   if (!queryKey) return null;
+
+  if (Platform.OS === 'web') {
+    const cache = getWebCache();
+    const entry = cache[queryKey];
+    if (entry && entry.response_json) {
+      try {
+        return JSON.parse(entry.response_json);
+      } catch (e) {
+        return null;
+      }
+    }
+    return null;
+  }
+
   const db = await getDB();
   try {
     const row = await db.getFirstAsync(
@@ -186,6 +310,24 @@ export async function getCachedNutrition(queryKey) {
  */
 export async function cacheNutrition(queryKey, data) {
   if (!queryKey || !data) return;
+
+  if (Platform.OS === 'web') {
+    const cache = getWebCache();
+    cache[queryKey] = {
+      response_json: JSON.stringify(data),
+      created_at: Date.now()
+    };
+    // Prune cache elements older than 7 days
+    const sevenDaysAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;
+    for (const k in cache) {
+      if (cache[k].created_at < sevenDaysAgo) {
+        delete cache[k];
+      }
+    }
+    saveWebCache(cache);
+    return;
+  }
+
   const db = await getDB();
   try {
     await db.runAsync(
@@ -206,6 +348,12 @@ export async function cacheNutrition(queryKey, data) {
  * Clear cached nutrition table.
  */
 export async function clearNutritionCache() {
+  if (Platform.OS === 'web') {
+    saveWebCache({});
+    console.log('[SQLite DB] Caches cleared.');
+    return;
+  }
+
   const db = await getDB();
   try {
     await db.runAsync('DELETE FROM nutrition_cache');
@@ -220,6 +368,23 @@ export async function clearNutritionCache() {
  */
 export async function addPendingUpload(localUri) {
   if (!localUri) return;
+
+  if (Platform.OS === 'web') {
+    const uploads = getWebUploads();
+    if (!uploads.some(u => u.local_uri === localUri)) {
+      uploads.push({
+        id: Date.now(),
+        local_uri: localUri,
+        synced: 0,
+        retry_count: 0,
+        created_at: Date.now()
+      });
+      saveWebUploads(uploads);
+    }
+    console.log('[SQLite DB] Added pending upload to queue (Web):', localUri);
+    return;
+  }
+
   const db = await getDB();
   try {
     await db.runAsync(
@@ -237,6 +402,11 @@ export async function addPendingUpload(localUri) {
  * Get all unsynced uploads from the queue.
  */
 export async function getPendingUploads() {
+  if (Platform.OS === 'web') {
+    const uploads = getWebUploads();
+    return uploads.filter(u => u.synced === 0);
+  }
+
   const db = await getDB();
   try {
     return await db.getAllAsync(
@@ -252,6 +422,13 @@ export async function getPendingUploads() {
  * Delete / Remove a pending upload after successful synchronization.
  */
 export async function deletePendingUpload(id) {
+  if (Platform.OS === 'web') {
+    const uploads = getWebUploads();
+    saveWebUploads(uploads.filter(u => u.id !== id));
+    console.log(`[SQLite DB] Deleted synced upload entry ID ${id} (Web).`);
+    return;
+  }
+
   const db = await getDB();
   try {
     await db.runAsync('DELETE FROM pending_uploads WHERE id = ?', id);
@@ -265,6 +442,15 @@ export async function deletePendingUpload(id) {
  * Mark a pending upload as synced (alternative/preservative strategy).
  */
 export async function markPendingUploadSynced(id) {
+  if (Platform.OS === 'web') {
+    const uploads = getWebUploads();
+    const u = uploads.find(item => item.id === id);
+    if (u) u.synced = 1;
+    saveWebUploads(uploads);
+    console.log(`[SQLite DB] Marked upload ID ${id} as synced (Web).`);
+    return;
+  }
+
   const db = await getDB();
   try {
     await db.runAsync('UPDATE pending_uploads SET synced = 1 WHERE id = ?', id);
@@ -278,6 +464,14 @@ export async function markPendingUploadSynced(id) {
  * Increment the retry count of an entry to avoid infinite syncing loops of broken files.
  */
 export async function incrementRetryCount(id) {
+  if (Platform.OS === 'web') {
+    const uploads = getWebUploads();
+    const u = uploads.find(item => item.id === id);
+    if (u) u.retry_count += 1;
+    saveWebUploads(uploads);
+    return;
+  }
+
   const db = await getDB();
   try {
     await db.runAsync(
@@ -294,6 +488,17 @@ export async function incrementRetryCount(id) {
  */
 export async function addFavoriteAsync(key) {
   if (!key) return;
+
+  if (Platform.OS === 'web') {
+    const favs = getWebFavorites();
+    if (!favs.includes(key)) {
+      favs.push(key);
+      saveWebFavorites(favs);
+    }
+    console.log('[SQLite DB] Added food to favorites (Web):', key);
+    return;
+  }
+
   const db = await getDB();
   try {
     await db.runAsync(
@@ -312,6 +517,15 @@ export async function addFavoriteAsync(key) {
  */
 export async function removeFavoriteAsync(key) {
   if (!key) return;
+
+  if (Platform.OS === 'web') {
+    const favs = getWebFavorites();
+    const newFavs = favs.filter(k => k !== key);
+    saveWebFavorites(newFavs);
+    console.log('[SQLite DB] Removed food from favorites (Web):', key);
+    return;
+  }
+
   const db = await getDB();
   try {
     await db.runAsync('DELETE FROM favorites WHERE key = ?', key);
@@ -325,6 +539,10 @@ export async function removeFavoriteAsync(key) {
  * Fetch all favorited food keys from user favorites.
  */
 export async function getFavoritesAsync() {
+  if (Platform.OS === 'web') {
+    return getWebFavorites();
+  }
+
   const db = await getDB();
   try {
     const rows = await db.getAllAsync('SELECT key FROM favorites ORDER BY added_at DESC');
@@ -340,6 +558,11 @@ export async function getFavoritesAsync() {
  */
 export async function isFavoriteAsync(key) {
   if (!key) return false;
+
+  if (Platform.OS === 'web') {
+    return getWebFavorites().includes(key);
+  }
+
   const db = await getDB();
   try {
     const row = await db.getFirstAsync('SELECT key FROM favorites WHERE key = ?', key);

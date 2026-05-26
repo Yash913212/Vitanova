@@ -346,31 +346,6 @@ export default function PremiumDashboard() {
   };
 
   // Image Processing & Scanning Handlers
-  const analyzeFromUri = useCallback(async (uri) => {
-    setLoading(true);
-    setError(null);
-    setScanResult(null);
-    setNutritionData(null);
-    setGuidance(null);
-    setOfflineMode(false);
-
-    try {
-      const base64 = await imageToBase64(uri);
-      const result = await recognizeFood(base64);
-      setScanResult(result);
-      showResults(result.item, result.confidence, result.summary, uri);
-    } catch (e) {
-      if (e.code === 'OFFLINE_FALLBACK' || e.code === 'NETWORK_ERROR' || e.code === 'TIMEOUT' || e.code === 'CONFIG_ERROR') {
-        setOfflineMode(true);
-        setError('📡 AI unavailable. Type food name below for offline local matching.');
-      } else {
-        setError(e.message || 'Failed to analyze image.');
-      }
-    } finally {
-      setLoading(false);
-    }
-  }, [recognizeFood, showResults]);
-
   const showResults = useCallback((itemName, conf, summary, uri) => {
     const nutrition = getNutrition(itemName);
     setNutritionData(nutrition);
@@ -403,6 +378,31 @@ export default function PremiumDashboard() {
       speak(speechText, settings.ttsLanguage);
     }
   }, [getNutrition, getGuidance, addEntry, profile, settings, queryKnowledge]);
+
+  const analyzeFromUri = useCallback(async (uri) => {
+    setLoading(true);
+    setError(null);
+    setScanResult(null);
+    setNutritionData(null);
+    setGuidance(null);
+    setOfflineMode(false);
+
+    try {
+      const base64 = await imageToBase64(uri);
+      const result = await recognizeFood(base64);
+      setScanResult(result);
+      showResults(result.item, result.confidence, result.summary, uri);
+    } catch (e) {
+      if (e.code === 'OFFLINE_FALLBACK' || e.code === 'NETWORK_ERROR' || e.code === 'TIMEOUT' || e.code === 'CONFIG_ERROR') {
+        setOfflineMode(true);
+        setError('📡 AI unavailable. Type food name below for offline local matching.');
+      } else {
+        setError(e.message || 'Failed to analyze image.');
+      }
+    } finally {
+      setLoading(false);
+    }
+  }, [recognizeFood, showResults]);
 
   const pickImage = useCallback(async (useCamera) => {
     try {

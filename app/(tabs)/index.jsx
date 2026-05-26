@@ -556,21 +556,22 @@ export default function PremiumDashboard() {
           {/* 12-Section Premium Wellness Dashboard */}
           <Animated.View style={{ opacity: dashboardFade, transform: [{ translateY: slideUp }] }}>
             
-            {/* Brand Logo Banner */}
-            <View style={styles.brandLogoContainer}>
-              <Image
-                source={require('../../assets/logo.png')}
-                style={styles.brandLogo}
-                resizeMode="contain"
-              />
-            </View>
-
-            {/* Header section */}
+            {/* Header section with brand logo avatar on the left */}
             <View style={styles.headerRow}>
-              <View>
-                <Text style={[styles.greetingText, { color: colors.textSecondary }]}>{greeting}</Text>
-                <Text style={[styles.userNameText, { color: colors.textPrimary }]}>{displayName} 👋</Text>
+              <View style={styles.headerLeftContainer}>
+                <View style={styles.headerLogoAvatar}>
+                  <Image
+                    source={require('../../assets/logo.png')}
+                    style={styles.headerLogoAvatarImage}
+                    resizeMode="contain"
+                  />
+                </View>
+                <View style={styles.headerGreetingCol}>
+                  <Text style={[styles.greetingText, { color: colors.textSecondary }]}>{greeting},</Text>
+                  <Text style={[styles.userNameText, { color: colors.textPrimary }]}>{displayName} 👋</Text>
+                </View>
               </View>
+              
               <View style={[styles.statusBadge, { backgroundColor: colors.glassBg, borderColor: colors.glassBorder }]}>
                 <View style={[styles.statusDot, { backgroundColor: isOnline ? colors.success : colors.warning }]} />
                 <Text style={[styles.statusText, { color: colors.textSecondary }]}>{isOnline ? 'Online' : 'Offline'}</Text>
@@ -1301,21 +1302,27 @@ const styles = StyleSheet.create({
   offlineSearchText: { fontSize: TYPOGRAPHY.bodySmall, color: COLORS.textInverse, fontFamily: TYPOGRAPHY.poppinsBold },
   
   // Brand Logo styles
-  brandLogoContainer: {
-    width: '100%',
-    height: 100,
-    borderRadius: RADIUS.xl,
+  headerLeftContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: SPACING.md,
+  },
+  headerLogoAvatar: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: '#F4F6F0',
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: SPACING.md,
-    overflow: 'hidden',
-    backgroundColor: '#F4F6F0',
     borderWidth: 1,
     borderColor: 'rgba(0, 0, 0, 0.05)',
-    ...SHADOWS.sm,
+    overflow: 'hidden',
   },
-  brandLogo: {
-    width: '90%',
-    height: '80%',
+  headerLogoAvatarImage: {
+    width: '75%',
+    height: '75%',
+  },
+  headerGreetingCol: {
+    justifyContent: 'center',
   },
 });

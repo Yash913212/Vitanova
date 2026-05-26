@@ -1308,9 +1308,9 @@ const styles = StyleSheet.create({
     gap: SPACING.md,
   },
   headerLogoAvatar: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+    width: 60,
+    height: 60,
+    borderRadius: 30,
     backgroundColor: '#F4F6F0',
     justifyContent: 'center',
     alignItems: 'center',
@@ -1319,8 +1319,8 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   headerLogoAvatarImage: {
-    width: '75%',
-    height: '75%',
+    width: '85%',
+    height: '85%',
   },
   headerGreetingCol: {
     justifyContent: 'center',

@@ -556,6 +556,15 @@ export default function PremiumDashboard() {
           {/* 12-Section Premium Wellness Dashboard */}
           <Animated.View style={{ opacity: dashboardFade, transform: [{ translateY: slideUp }] }}>
             
+            {/* Brand Logo Banner */}
+            <View style={styles.brandLogoContainer}>
+              <Image
+                source={require('../../assets/logo.png')}
+                style={styles.brandLogo}
+                resizeMode="contain"
+              />
+            </View>
+
             {/* Header section */}
             <View style={styles.headerRow}>
               <View>
@@ -1290,4 +1299,23 @@ const styles = StyleSheet.create({
   },
   offlineSearchBtn: { backgroundColor: COLORS.primary, borderRadius: RADIUS.lg, paddingHorizontal: SPACING.lg, justifyContent: 'center' },
   offlineSearchText: { fontSize: TYPOGRAPHY.bodySmall, color: COLORS.textInverse, fontFamily: TYPOGRAPHY.poppinsBold },
+  
+  // Brand Logo styles
+  brandLogoContainer: {
+    width: '100%',
+    height: 100,
+    borderRadius: RADIUS.xl,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: SPACING.md,
+    overflow: 'hidden',
+    backgroundColor: '#F4F6F0',
+    borderWidth: 1,
+    borderColor: 'rgba(0, 0, 0, 0.05)',
+    ...SHADOWS.sm,
+  },
+  brandLogo: {
+    width: '90%',
+    height: '80%',
+  },
 });

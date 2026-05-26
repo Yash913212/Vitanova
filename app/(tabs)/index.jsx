@@ -346,7 +346,7 @@ export default function PremiumDashboard() {
   };
 
   // Image Processing & Scanning Handlers
-  const showResults = useCallback((itemName, conf, summary, uri) => {
+  const showResults = useCallback((itemName, conf, summary, uri, detailedAnalysis = null) => {
     const nutrition = getNutrition(itemName);
     setNutritionData(nutrition);
 
@@ -367,6 +367,7 @@ export default function PremiumDashboard() {
       imageUri: uri,
       nutritionSnapshot: nutrition,
       aiRecommendation: g?.summary || summary,
+      detailedAnalysis: detailedAnalysis,
     });
 
     if (settings.autoTTS && itemName !== 'unknown') {
@@ -389,9 +390,9 @@ export default function PremiumDashboard() {
 
     try {
       const base64 = await imageToBase64(uri);
-      const result = await recognizeFood(base64);
+      const result = await recognizeFood(base64, profile, settings);
       setScanResult(result);
-      showResults(result.item, result.confidence, result.summary, uri);
+      showResults(result.item, result.confidence, result.summary, uri, result.detailedAnalysis);
     } catch (e) {
       if (e.code === 'OFFLINE_FALLBACK' || e.code === 'NETWORK_ERROR' || e.code === 'TIMEOUT' || e.code === 'CONFIG_ERROR') {
         setOfflineMode(true);
@@ -402,7 +403,7 @@ export default function PremiumDashboard() {
     } finally {
       setLoading(false);
     }
-  }, [recognizeFood, showResults]);
+  }, [recognizeFood, showResults, profile, settings]);
 
   const pickImage = useCallback(async (useCamera) => {
     try {
@@ -1104,6 +1105,33 @@ export default function PremiumDashboard() {
               </View>
             )}
 
+            {/* View Premium Dietician Report */}
+            {scanResult && scanResult.isFood !== false && (
+              <TouchableOpacity
+                style={[styles.premiumReportBtn, { backgroundColor: colors.primary }]}
+                activeOpacity={0.8}
+                onPress={() => {
+                  setScanModalVisible(false);
+                  router.push({
+                    pathname: '/nutrition-details',
+                    params: {
+                      data: JSON.stringify({
+                        item: scanResult.item,
+                        confidence: scanResult.confidence,
+                        summary: scanResult.summary,
+                        imageUri,
+                        nutritionSnapshot: nutritionData,
+                        aiRecommendation: guidance?.summary || scanResult.summary,
+                        detailedAnalysis: scanResult.detailedAnalysis,
+                      }),
+                    },
+                  });
+                }}
+              >
+                <Text style={styles.premiumReportText}>🏆 View Premium Dietician Report ➔</Text>
+              </TouchableOpacity>
+            )}
+
             {/* Scan another trigger */}
             {scanResult && (
               <TouchableOpacity style={[styles.newScanBtn, { borderColor: colors.primary }]} onPress={clearScan}>
@@ -1316,6 +1344,8 @@ const styles = StyleSheet.create({
   tip: { fontSize: TYPOGRAPHY.caption, color: COLORS.primaryDark, marginBottom: 4 },
   newScanBtn: { borderWidth: 2, borderRadius: RADIUS.lg, paddingVertical: SPACING.md, alignItems: 'center', marginTop: SPACING.sm },
   newScanText: { fontSize: TYPOGRAPHY.body, fontFamily: TYPOGRAPHY.poppinsSemiBold },
+  premiumReportBtn: { borderRadius: RADIUS.lg, paddingVertical: SPACING.md, alignItems: 'center', marginTop: SPACING.md, ...SHADOWS.md },
+  premiumReportText: { fontSize: TYPOGRAPHY.body, fontFamily: TYPOGRAPHY.poppinsBold, color: '#FFF' },
   errorCard: { backgroundColor: COLORS.error + '10', borderRadius: RADIUS.md, padding: SPACING.md, marginBottom: SPACING.md },
   errorText: { fontSize: TYPOGRAPHY.bodySmall, color: COLORS.error },
   offlineInput: { flexDirection: 'row', gap: SPACING.sm, marginBottom: SPACING.lg },

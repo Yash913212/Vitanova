@@ -3,7 +3,7 @@
  * Now with graceful offline fallback — never hard-blocks.
  */
 import React, { createContext, useContext, useState, useCallback } from 'react';
-import { recognizeImage, chatWithAI, AIError } from '../services/aiService';
+import { recognizeImage, chatWithAI, AIError, analyzeFoodImageAndGenerateInsights } from '../services/aiService';
 import { useNetworkStatus } from '../hooks/useNetworkStatus';
 import { generateRAGResponse } from '../services/rag/ragService';
 
@@ -17,11 +17,11 @@ export function AIProvider({ children }) {
   // isOnline checks both connected AND internet reachable
   const isOnline = network.isConnected && network.isInternetReachable;
 
-  const recognizeFood = useCallback(async (base64Image) => {
+  const recognizeFood = useCallback(async (base64Image, profile = null, settings = null) => {
     setIsProcessing(true);
     setLastError(null);
     try {
-      const result = await recognizeImage(base64Image);
+      const result = await analyzeFoodImageAndGenerateInsights(base64Image, profile, settings, isOnline);
       return result;
     } catch (error) {
       setLastError(error.message);
@@ -36,7 +36,7 @@ export function AIProvider({ children }) {
     } finally {
       setIsProcessing(false);
     }
-  }, []);
+  }, [isOnline]);
 
   const chat = useCallback(async (messages, context = {}) => {
     setIsProcessing(true);

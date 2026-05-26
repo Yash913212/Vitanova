@@ -4,6 +4,8 @@
  */
 import { getAIConfig, isAPIConfigured } from '../utils/config';
 import { getCachedNutrition, cacheNutrition, searchOfflineFood } from './sqlite/database';
+import { lookupNutrition } from './nutritionService';
+import { retrieveKnowledge } from './rag/retriever';
 
 // Robust vision model fallback chain
 const VISION_FALLBACKS = [
@@ -287,6 +289,328 @@ I searched your offline database for terms matching your query but couldn't find
 
 💡 *Try asking about standard foods in our local DB, such as:*
 Apple, Banana, Rice, Chicken Breast, Eggs, Whole Milk, Avocado, Spinach, Oats, paneer, or Salmon.`;
+}
+
+/**
+ * Upgrade the VitaNova AI image analysis system to perform dietician-level nutrition breakdown.
+ * Orchestrates: Vision Detection -> Cache Check -> DB Retrieval -> RAG doc match -> OpenRouter enhancement -> Cache.
+ */
+export async function analyzeFoodImageAndGenerateInsights(base64Image, profile, settings, isOnline) {
+  // 1. Identify primary food item name from image using Vision AI
+  const visionResult = await recognizeImage(base64Image);
+  if (!visionResult.isFood) {
+    return {
+      ...visionResult,
+      detailedAnalysis: null
+    };
+  }
+
+  const foodName = visionResult.item;
+
+  // 2. Check local SQLite cache first for detailed dietician breakdown
+  const cacheKey = `detailed_${foodName.toLowerCase().replace(/\s+/g, '_')}`;
+  const cachedResponse = await getCachedNutrition(cacheKey);
+  if (cachedResponse) {
+    console.log('[AI Service] Enriched detailed response retrieved from local SQLite cache.');
+    return {
+      ...visionResult,
+      detailedAnalysis: cachedResponse
+    };
+  }
+
+  // 3. Local DB retrieval & RAG retrieval
+  const dbNutrition = lookupNutrition(foodName);
+  const language = settings?.ttsLanguage || 'en';
+  const retrievedDocs = retrieveKnowledge(foodName, { language, topK: 1 });
+  const ragDoc = retrievedDocs && retrievedDocs.length > 0 ? retrievedDocs[0] : null;
+
+  // 4. Generate or compile analysis
+  let detailedAnalysis = null;
+
+  if (isOnline && isAPIConfigured()) {
+    const config = getAIConfig();
+    const modelChain = [config.chatModel, ...CHAT_FALLBACKS];
+    let lastError = null;
+
+    const systemPrompt = `You are a Professional AI Dietician and Nutrition Coach. Generate a comprehensive dietician-level nutritional analysis for the food item: "${foodName}".
+We have verified local information:
+- Category: ${dbNutrition?.category || 'General'}
+- Macros (per 100g): Calories: ${dbNutrition?.calories || 'N/A'}, Protein: ${dbNutrition?.protein || 'N/A'}g, Carbs: ${dbNutrition?.carbs || 'N/A'}g, Fats: ${dbNutrition?.fats || 'N/A'}g, Fiber: ${dbNutrition?.fiber || 'N/A'}g
+- Hydration: ${dbNutrition?.hydration || 'N/A'}%
+- Vitamins: ${dbNutrition?.vitamins?.join(', ') || 'N/A'}
+- Minerals: ${dbNutrition?.minerals?.join(', ') || 'N/A'}
+${ragDoc ? `- RAG Health Benefits: ${ragDoc.benefits}` : ''}
+${ragDoc ? `- RAG Recommended Portion: ${ragDoc.recommendedIntake}` : ''}
+${ragDoc ? `- RAG Optimal Time: ${ragDoc.bestTime}` : ''}
+${ragDoc ? `- RAG Cautions: ${ragDoc.warnings}` : ''}
+
+Use this context to enhance your response. The response must be a detailed, motivational, intelligent, dietician-style analysis in the exact JSON format specified below. Do not include any markdown fences or conversational preambles outside the JSON.
+
+JSON Schema format:
+{
+  "foodIdentification": {
+    "name": "string",
+    "category": "string",
+    "ingredients": ["string"],
+    "portionEstimation": "string",
+    "preparationStyle": "string"
+  },
+  "nutritionBreakdown": {
+    "calories": number,
+    "protein": number,
+    "carbs": number,
+    "fats": number,
+    "fiber": number,
+    "sugar": number,
+    "sodium": number,
+    "vitamins": ["string"],
+    "minerals": ["string"],
+    "nutrientQualityScore": number,
+    "healthRating": "Excellent"
+  },
+  "healthExplanation": "string",
+  "consumptionGuidance": {
+    "frequency": "Daily",
+    "healthyQuantity": "string",
+    "idealServingSize": "string",
+    "avoidExcessWarning": "string"
+  },
+  "healthBenefits": {
+    "immunitySupport": "string",
+    "digestionBenefits": "string",
+    "heartHealth": "string",
+    "muscleGrowth": "string",
+    "hydration": "string",
+    "energyBoost": "string"
+  },
+  "healthRisks": {
+    "highSugarWarning": "string or 'None'",
+    "excessOilWarning": "string or 'None'",
+    "processedFoodRisk": "string or 'None'",
+    "sodiumWarning": "string or 'None'",
+    "overeatingEffects": "string"
+  },
+  "bestTimeToEat": {
+    "timing": "string",
+    "explanation": "string"
+  },
+  "whoShouldEatThis": {
+    "demographics": ["string"],
+    "cautions": ["string"]
+  },
+  "portionEstimationDetails": {
+    "servingSize": "string",
+    "approxGrams": number,
+    "estimatedQuantity": "string"
+  },
+  "aiFoodScore": {
+    "healthScore": number,
+    "nutritionScore": number,
+    "proteinScore": number,
+    "hydrationScore": number
+  },
+  "aiAlternatives": [
+    {
+      "name": "string",
+      "benefit": "string",
+      "method": "string"
+    }
+  ],
+  "aiMealCombination": {
+    "pairsWellWith": ["string"],
+    "recommendedSides": ["string"],
+    "avoidCombining": ["string"]
+  },
+  "hydrationAndDigestion": {
+    "hydrationSupport": "High",
+    "digestionSpeed": "Moderate",
+    "mealStatus": "Light Meal"
+  }
+}`;
+
+    const userMessage = `Please analyze "${foodName}" under the following user profile:
+Goal: ${profile?.fitnessGoal || 'maintenance'}
+Diet Preference: ${profile?.dietPreference || 'none'}`;
+
+    for (let i = 0; i < modelChain.length; i++) {
+      const activeModel = modelChain[i];
+      console.log(`[AI Service] Generating premium dietician insights with model (${i + 1}/${modelChain.length}): ${activeModel}`);
+
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 20000);
+
+      try {
+        const response = await fetch(config.apiUrl, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${config.apiKey}`,
+            'Content-Type': 'application/json',
+            'HTTP-Referer': 'https://vitanova.app',
+            'X-Title': 'VitaNova AI',
+          },
+          signal: controller.signal,
+          body: JSON.stringify({
+            model: activeModel,
+            max_tokens: config.maxTokensChat,
+            temperature: 0.3,
+            messages: [
+              { role: 'system', content: systemPrompt },
+              { role: 'user', content: userMessage }
+            ],
+          }),
+        });
+
+        clearTimeout(timeout);
+
+        if (!response.ok) {
+          throw new AIError(`API error: ${response.status}`, 'API_ERROR');
+        }
+
+        const data = await response.json();
+        const content = data?.choices?.[0]?.message?.content;
+
+        if (!content) {
+          throw new AIError('Empty response from AI', 'EMPTY_RESPONSE');
+        }
+
+        const cleaned = content.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+        detailedAnalysis = JSON.parse(cleaned);
+        break;
+
+      } catch (error) {
+        clearTimeout(timeout);
+        console.warn(`[AI Service] Dietician Chat model ${activeModel} failed:`, error.message);
+        lastError = error;
+      }
+    }
+  }
+
+  // 5. Fallback to compiled offline data
+  if (!detailedAnalysis) {
+    console.log('[AI Service] Compiling high-fidelity offline dietician fallback details...');
+    detailedAnalysis = compileOfflineDetailedAnalysis(foodName, dbNutrition, ragDoc, profile);
+  }
+
+  // 6. Cache detailed response
+  await cacheNutrition(cacheKey, detailedAnalysis);
+
+  return {
+    ...visionResult,
+    detailedAnalysis
+  };
+}
+
+/**
+ * Standard offline dietician-level breakdown compiler mapping SQLite & RAG to standard schema.
+ */
+export function compileOfflineDetailedAnalysis(itemName, localDbNutrition, ragDoc, profile) {
+  const name = localDbNutrition?.name || itemName;
+  const category = localDbNutrition?.category || 'General';
+  const cals = localDbNutrition?.calories || 120;
+  const protein = localDbNutrition?.protein || 2;
+  const carbs = localDbNutrition?.carbs || 15;
+  const fats = localDbNutrition?.fats || 1;
+  const fiber = localDbNutrition?.fiber || 1;
+  const hydration = localDbNutrition?.hydration || 50;
+  const vitamins = localDbNutrition?.vitamins || ['Vitamin C'];
+  const minerals = localDbNutrition?.minerals || ['Potassium'];
+
+  const healthScore = Math.min(98, Math.max(25, Math.round(85 - (cals > 250 ? 15 : 0) + (fiber > 2 ? 10 : 0) + (protein > 10 ? 10 : 0))));
+  const nutritionScore = Math.min(95, Math.max(30, Math.round(75 + (fiber > 1 ? 10 : 0) + (vitamins.length * 4))));
+  const proteinScore = Math.min(100, Math.max(5, Math.round(protein * 5)));
+  const hydrationScore = hydration;
+
+  const sugar = Math.round(carbs * 0.15);
+  const sodium = category === 'protein' ? 120 : 25;
+
+  const alternative = localDbNutrition ? `Organic or homemade version of ${name}` : `Fresh steamed vegetables`;
+
+  return {
+    foodIdentification: {
+      name,
+      category,
+      ingredients: localDbNutrition ? [name] : [itemName],
+      portionEstimation: localDbNutrition?.recommendedQty || '1 serving',
+      preparationStyle: 'Standard / Prepared raw or steamed'
+    },
+    nutritionBreakdown: {
+      calories: cals,
+      protein,
+      carbs,
+      fats,
+      fiber,
+      sugar,
+      sodium,
+      vitamins,
+      minerals,
+      nutrientQualityScore: healthScore,
+      healthRating: healthScore > 80 ? 'Excellent' : healthScore > 60 ? 'Good' : 'Moderate'
+    },
+    healthExplanation: localDbNutrition?.benefits || `This is ${name}, a food item which provides an array of macronutrients including ${carbs}g carbs, ${protein}g protein, and is beneficial as part of a balanced diet.`,
+    consumptionGuidance: {
+      frequency: healthScore > 85 ? 'Daily' : healthScore > 65 ? '2-3x/Week' : 'Occasionally',
+      healthyQuantity: localDbNutrition?.recommendedQty || '1 standard portion',
+      idealServingSize: localDbNutrition?.recommendedQty || '1 standard portion',
+      avoidExcessWarning: 'Be mindful of portion sizes to avoid excessive calorie intake.'
+    },
+    healthBenefits: {
+      immunitySupport: ragDoc?.benefits || 'Provides essential micronutrients that help keep your body\'s immune defense systems active.',
+      digestionBenefits: fiber > 2.5 ? 'High fiber count aids regular digestion and gut microbiome health.' : 'Easy to digest and highly compatible with standard meal intervals.',
+      heartHealth: fats < 3 ? 'Low saturated fat density supports healthy blood pressure and cholesterol.' : 'Contains healthy fatty acids that feed vascular linings.',
+      muscleGrowth: `${protein}g of protein provides standard amino acids to support skeletal muscle repairs.`,
+      hydration: `${hydration}% water volume supports cellular hydration and osmotic fluid levels.`,
+      energyBoost: `${carbs}g carbohydrates provide vital direct energy to support physical actions.`
+    },
+    healthRisks: {
+      highSugarWarning: sugar > 15 ? 'Contains moderate-to-high natural sugars.' : 'None',
+      excessOilWarning: fats > 15 ? 'Contains significant lipids. Limit preparation oils.' : 'None',
+      processedFoodRisk: 'None (Whole food source)',
+      sodiumWarning: sodium > 300 ? 'Higher sodium levels. Season carefully.' : 'None',
+      overeatingEffects: 'Eating in surplus of your daily expenditure can lead to excess body fat accumulation.'
+    },
+    bestTimeToEat: {
+      timing: localDbNutrition?.bestTime || 'Breakfast or Mid-Day Snack',
+      explanation: 'Provides optimal nutrient absorption and sustains energy levels during active hours.'
+    },
+    whoShouldEatThis: {
+      demographics: [
+        profile?.fitnessGoal === 'weight_loss' ? 'Weight Loss Seekers' : 'Healthy Lifestyles',
+        protein > 10 ? 'Gym Enthusiasts' : 'General Fitness',
+        'Vegans & Vegetarians'
+      ],
+      cautions: [
+        ragDoc?.warnings || 'Always practice moderate seasoning and proper cooking sanitation.'
+      ]
+    },
+    portionEstimationDetails: {
+      servingSize: '1 portion',
+      approxGrams: 100,
+      estimatedQuantity: localDbNutrition?.recommendedQty || '1 serving'
+    },
+    aiFoodScore: {
+      healthScore,
+      nutritionScore,
+      proteinScore,
+      hydrationScore
+    },
+    aiAlternatives: [
+      {
+        name: alternative,
+        benefit: 'Reduces heavy processing or excess fats',
+        method: 'Prepare by air-frying or baking instead of deep-frying.'
+      }
+    ],
+    aiMealCombination: {
+      pairsWellWith: ['Leafy Greens', 'Quinoa', 'Brown Rice'],
+      recommendedSides: ['Steamed broccoli', 'Cucumber slices'],
+      avoidCombining: ['High-calorie sweetened beverages', 'Deep-fried appetizers']
+    },
+    hydrationAndDigestion: {
+      hydrationSupport: hydration > 70 ? 'High' : hydration > 40 ? 'Medium' : 'Low',
+      digestionSpeed: fiber > 3 ? 'Slow' : 'Moderate',
+      mealStatus: cals < 150 ? 'Light Meal' : 'Heavy Meal'
+    }
+  };
 }
 
 /**

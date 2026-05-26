@@ -23,10 +23,6 @@ const SPRING_CONFIG = {
   delete: { type: LayoutAnimation.Types.easeInEaseOut, property: LayoutAnimation.Properties.opacity },
 };
 
-const CATEGORY_ICONS = {
-  fruit: '🍎', vegetable: '🥦', grain: '🌾', protein: '🥩', dairy: '🥛', nut: '🥜',
-};
-
 const FREQUENCY_CONFIG = {
   daily: { label: 'Daily', emoji: '✅', color: '#10B981', bg: '#10B98118' },
   weekly: { label: '2-3x/Week', emoji: '📅', color: '#3B82F6', bg: '#3B82F618' },
@@ -46,41 +42,6 @@ const GOAL_TAGS = {
   brain_health: { label: 'Brain Health', icon: '🧠', color: '#6366F1' },
   eye_health: { label: 'Eye Health', icon: '👁️', color: '#14B8A6' },
   hydration: { label: 'Hydration', icon: '💧', color: '#0EA5E9' },
-};
-
-const FOOD_ICONS = {
-  apple: '🍎',
-  banana: '🍌',
-  mango: '🥭',
-  orange: '🍊',
-  grape: '🍇',
-  strawberry: '🍓',
-  watermelon: '🍉',
-  avocado: '🥑',
-  spinach: '🥬',
-  carrot: '🥕',
-  broccoli: '🥦',
-  potato: '🥔',
-  sweet_potato: '🍠',
-  rice: '🍚',
-  oats: '🥣',
-  egg: '🥚',
-  almond: '🌰',
-  walnut: '🌰',
-  milk: '🥛',
-  chicken: '🍗',
-  fish: '🐟',
-  paneer: '🧀',
-  cheese: '🧀',
-  tofu: '⬜',
-  yogurt: '🍧',
-  cucumber: '🥒',
-  lemon: '🍋',
-  peach: '🍑',
-  pineapple: '🍍',
-  cherry: '🍒',
-  blueberry: '🫐',
-  kiwi: '🥝',
 };
 
 function ExpandableFoodCard({ food, index = 0 }) {
@@ -112,16 +73,6 @@ function ExpandableFoodCard({ food, index = 0 }) {
 
   const arrowRotate = arrowAnim.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '180deg'] });
 
-  // Resolve custom specific food icon or fallback to category icon
-  const foodLower = food.name?.toLowerCase() || '';
-  let foodIcon = CATEGORY_ICONS[food.category?.toLowerCase()] || '🍽️';
-  for (const [key, icon] of Object.entries(FOOD_ICONS)) {
-    if (foodLower.includes(key)) {
-      foodIcon = icon;
-      break;
-    }
-  }
-
   const healthScore = guidance?.healthScore || Math.min(10, Math.max(1, (10 - food.calories / 70 + food.fiber * 0.8 + food.protein * 0.3)));
   const scoreColor = healthScore >= 8 ? '#10B981' : healthScore >= 5 ? '#F59E0B' : '#EF4444';
 
@@ -140,7 +91,6 @@ function ExpandableFoodCard({ food, index = 0 }) {
       >
         {/* Header Row */}
         <View style={styles.header}>
-          <Text style={styles.catIcon}>{foodIcon}</Text>
           <View style={styles.headerInfo}>
             <Text style={[styles.foodName, { color: colors.textPrimary }]}>{food.name}</Text>
             <Text style={[styles.category, { color: colors.textTertiary }]}>

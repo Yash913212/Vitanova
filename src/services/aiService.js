@@ -1,5 +1,5 @@
 /**
- * NutriVision AI — OpenRouter AI Service
+ * VitaNova AI — OpenRouter AI Service
  * Modular adapter for vision + conversational AI with robust caching, fallbacks, and offline support.
  */
 import { getAIConfig, isAPIConfigured } from '../utils/config';
@@ -58,8 +58,8 @@ export async function recognizeImage(base64Image) {
         headers: {
           'Authorization': `Bearer ${config.apiKey}`,
           'Content-Type': 'application/json',
-          'HTTP-Referer': 'https://nutrivision.app',
-          'X-Title': 'NutriVision AI',
+          'HTTP-Referer': 'https://vitanova.app',
+          'X-Title': 'VitaNova AI',
         },
         signal: controller.signal,
         body: JSON.stringify({
@@ -200,8 +200,8 @@ export async function chatWithAI(messages, systemPrompt) {
         headers: {
           'Authorization': `Bearer ${config.apiKey}`,
           'Content-Type': 'application/json',
-          'HTTP-Referer': 'https://nutrivision.app',
-          'X-Title': 'NutriVision AI',
+          'HTTP-Referer': 'https://vitanova.app',
+          'X-Title': 'VitaNova AI',
         },
         signal: controller.signal,
         body: JSON.stringify({

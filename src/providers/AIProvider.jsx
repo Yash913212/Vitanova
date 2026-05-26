@@ -1,5 +1,5 @@
 /**
- * NutriVision AI — AI Provider
+ * VitaNova AI — AI Provider
  * Now with graceful offline fallback — never hard-blocks.
  */
 import React, { createContext, useContext, useState, useCallback } from 'react';
@@ -80,7 +80,7 @@ export function AIProvider({ children }) {
 }
 
 function buildSystemPrompt(context) {
-  let prompt = `You are NutriVision AI, a friendly nutrition and health assistant. Keep responses concise (2-3 sentences), conversational, and voice-friendly. Focus on nutrition, health, and dietary advice.`;
+  let prompt = `You are VitaNova AI, a friendly nutrition and health assistant. Keep responses concise (2-3 sentences), conversational, and voice-friendly. Focus on nutrition, health, and dietary advice.`;
 
   if (context.languageInstruction) {
     prompt += context.languageInstruction;

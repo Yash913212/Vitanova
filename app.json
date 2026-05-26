@@ -1,12 +1,12 @@
 {
   "expo": {
-    "name": "NutriVision AI",
-    "slug": "NurivAi",
+    "name": "VitaNova AI",
+    "slug": "VitaNova",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
-    "scheme": "nutrivisionai",
+    "scheme": "vitanova",
     "newArchEnabled": true,
     "splash": {
       "image": "./assets/splash-icon.png",
@@ -15,7 +15,7 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.nutrivision.ai"
+      "bundleIdentifier": "com.vitanova.ai"
     },
     "android": {
       "adaptiveIcon": {
@@ -23,7 +23,7 @@
         "backgroundColor": "#f1f2ec"
       },
       "edgeToEdgeEnabled": false,
-      "package": "com.nutrivision.ai"
+      "package": "com.vitanova.ai"
     },
     "web": {
       "favicon": "./assets/favicon.png",
@@ -34,13 +34,13 @@
       [
         "expo-camera",
         {
-          "cameraPermission": "NutriVision AI needs camera access to scan food items"
+          "cameraPermission": "VitaNova AI needs camera access to scan food items"
         }
       ],
       [
         "expo-image-picker",
         {
-          "photosPermission": "NutriVision AI needs photo access to analyze food images"
+          "photosPermission": "VitaNova AI needs photo access to analyze food images"
         }
       ],
       "expo-font"

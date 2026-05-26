@@ -1,14 +1,14 @@
 /**
- * NutriVision AI — Application Constants
+ * VitaNova AI — Application Constants
  */
 
 // AsyncStorage keys
 export const STORAGE_KEYS = {
-  SETTINGS: '@nutrivision_settings',
-  PROFILE: '@nutrivision_profile',
-  HISTORY: '@nutrivision_history',
-  CHAT_MESSAGES: '@nutrivision_chat',
-  AUTH: '@nutrivision_auth',
+  SETTINGS: '@vitanova_settings',
+  PROFILE: '@vitanova_profile',
+  HISTORY: '@vitanova_history',
+  CHAT_MESSAGES: '@vitanova_chat',
+  AUTH: '@vitanova_auth',
 };
 
 // Supported languages

@@ -1,4 +1,4 @@
-# 🥗 NutriVision AI
+# 🥗 VitaNova AI
 
 **AI-Powered Nutrition Assistant** — Scan food with your camera, get instant nutrition insights, and receive personalized diet guidance powered by AI.
 
@@ -72,7 +72,7 @@
 ## 🏗️ Architecture
 
 ```
-NurivAi/
+VitaNova/
 ├── app/                          # Expo Router (file-based routing)
 │   ├── _layout.jsx               # Root layout with providers
 │   ├── nutrition-details.jsx     # Nutrition detail screen
@@ -158,8 +158,8 @@ NurivAi/
 
 ```bash
 # 1. Clone the repository
-git clone https://github.com/your-username/NurivAi.git
-cd NurivAi
+git clone https://github.com/your-username/Vitanova.git
+cd Vitanova
 
 # 2. Install dependencies
 npm install

@@ -7,7 +7,7 @@
  */
 import React, { useState, useCallback, useRef, useEffect } from 'react';
 import {
-  View, Text, TextInput, TouchableOpacity, ScrollView, Alert, StyleSheet, Animated, Image, Dimensions, Modal, ActivityIndicator, FlatList
+  View, Text, TextInput, TouchableOpacity, ScrollView, Alert, StyleSheet, Animated, Image, Dimensions, Modal, ActivityIndicator, FlatList, Platform
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
@@ -409,22 +409,24 @@ export default function PremiumDashboard() {
       setError(null);
       let result;
       if (useCamera) {
-        const perm = await ImagePicker.requestCameraPermissionsAsync();
-        if (!perm.granted) {
-          Alert.alert('Permission Needed', 'Camera access is required to scan foods.');
-          return;
+        if (Platform.OS !== 'web') {
+          const perm = await ImagePicker.requestCameraPermissionsAsync();
+          if (!perm.granted) {
+            Alert.alert('Permission Needed', 'Camera access is required to scan foods.');
+            return;
+          }
         }
         result = await ImagePicker.launchCameraAsync({
           mediaTypes: ['images'],
           quality: 0.8,
-          allowsEditing: true,
+          allowsEditing: Platform.OS !== 'web',
           aspect: [4, 3],
         });
       } else {
         result = await ImagePicker.launchImageLibraryAsync({
           mediaTypes: ['images'],
           quality: 0.8,
-          allowsEditing: true,
+          allowsEditing: Platform.OS !== 'web',
           aspect: [4, 3],
         });
       }
@@ -433,23 +435,41 @@ export default function PremiumDashboard() {
         const originalUri = result.assets[0].uri;
         setLoading(true);
 
-        const manipResult = await ImageManipulator.manipulateAsync(
-          originalUri,
-          [{ resize: { width: 800 } }],
-          { compress: 0.6, format: ImageManipulator.SaveFormat.JPEG }
-        );
-
-        const scansDir = `${FileSystem.documentDirectory}scans/`;
-        const dirInfo = await FileSystem.getInfoAsync(scansDir);
-        if (!dirInfo.exists) {
-          await FileSystem.makeDirectoryAsync(scansDir, { intermediates: true });
+        // Attempt image manipulation safely (falling back to original on failure or if web lacks module)
+        let processedUri = originalUri;
+        try {
+          const manipResult = await ImageManipulator.manipulateAsync(
+            originalUri,
+            [{ resize: { width: 800 } }],
+            { compress: 0.6, format: ImageManipulator.SaveFormat.JPEG }
+          );
+          processedUri = manipResult.uri;
+        } catch (manipError) {
+          console.warn('Image manipulation failed, using original uri:', manipError);
         }
 
-        const fileName = `${Date.now()}_scan.jpg`;
-        const persistentUri = `${scansDir}${fileName}`;
-        await FileSystem.copyAsync({ from: manipResult.uri, to: persistentUri });
+        let persistentUri = processedUri;
 
-        await addPendingUpload(persistentUri);
+        // Perform local file system persistence only on Native, bypassing on Web
+        if (Platform.OS !== 'web') {
+          try {
+            const scansDir = `${FileSystem.documentDirectory}scans/`;
+            const dirInfo = await FileSystem.getInfoAsync(scansDir);
+            if (!dirInfo.exists) {
+              await FileSystem.makeDirectoryAsync(scansDir, { intermediates: true });
+            }
+
+            const fileName = `${Date.now()}_scan.jpg`;
+            persistentUri = `${scansDir}${fileName}`;
+            await FileSystem.copyAsync({ from: processedUri, to: persistentUri });
+
+            // Enqueue native offline sync
+            await addPendingUpload(persistentUri);
+          } catch (fsError) {
+            console.warn('Native filesystem copy failed, using memory uri:', fsError);
+            persistentUri = processedUri;
+          }
+        }
 
         setImageUri(persistentUri);
         setScanResult(null);
@@ -459,6 +479,7 @@ export default function PremiumDashboard() {
         analyzeFromUri(persistentUri);
       }
     } catch (e) {
+      console.error('Image picking/processing failed:', e);
       setLoading(false);
       setError('Failed to pick and process image.');
     }

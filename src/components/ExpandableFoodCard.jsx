@@ -48,6 +48,41 @@ const GOAL_TAGS = {
   hydration: { label: 'Hydration', icon: '💧', color: '#0EA5E9' },
 };
 
+const FOOD_ICONS = {
+  apple: '🍎',
+  banana: '🍌',
+  mango: '🥭',
+  orange: '🍊',
+  grape: '🍇',
+  strawberry: '🍓',
+  watermelon: '🍉',
+  avocado: '🥑',
+  spinach: '🥬',
+  carrot: '🥕',
+  broccoli: '🥦',
+  potato: '🥔',
+  sweet_potato: '🍠',
+  rice: '🍚',
+  oats: '🥣',
+  egg: '🥚',
+  almond: '🌰',
+  walnut: '🌰',
+  milk: '🥛',
+  chicken: '🍗',
+  fish: '🐟',
+  paneer: '🧀',
+  cheese: '🧀',
+  tofu: '⬜',
+  yogurt: '🍧',
+  cucumber: '🥒',
+  lemon: '🍋',
+  peach: '🍑',
+  pineapple: '🍍',
+  cherry: '🍒',
+  blueberry: '🫐',
+  kiwi: '🥝',
+};
+
 function ExpandableFoodCard({ food, index = 0 }) {
   const { isDark, colors } = useAppTheme();
   const router = useRouter();
@@ -76,7 +111,16 @@ function ExpandableFoodCard({ food, index = 0 }) {
   }, [expanded]);
 
   const arrowRotate = arrowAnim.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '180deg'] });
-  const catIcon = CATEGORY_ICONS[food.category] || '🍽️';
+
+  // Resolve custom specific food icon or fallback to category icon
+  const foodLower = food.name?.toLowerCase() || '';
+  let foodIcon = CATEGORY_ICONS[food.category?.toLowerCase()] || '🍽️';
+  for (const [key, icon] of Object.entries(FOOD_ICONS)) {
+    if (foodLower.includes(key)) {
+      foodIcon = icon;
+      break;
+    }
+  }
 
   const healthScore = guidance?.healthScore || Math.min(10, Math.max(1, (10 - food.calories / 70 + food.fiber * 0.8 + food.protein * 0.3)));
   const scoreColor = healthScore >= 8 ? '#10B981' : healthScore >= 5 ? '#F59E0B' : '#EF4444';
@@ -96,7 +140,7 @@ function ExpandableFoodCard({ food, index = 0 }) {
       >
         {/* Header Row */}
         <View style={styles.header}>
-          <Text style={styles.catIcon}>{catIcon}</Text>
+          <Text style={styles.catIcon}>{foodIcon}</Text>
           <View style={styles.headerInfo}>
             <Text style={[styles.foodName, { color: colors.textPrimary }]}>{food.name}</Text>
             <Text style={[styles.category, { color: colors.textTertiary }]}>

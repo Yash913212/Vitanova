@@ -18,6 +18,8 @@ import { KnowledgeProvider } from '../src/providers/KnowledgeProvider';
 import { COLORS } from '../src/utils/theme';
 import { useFonts, Poppins_400Regular, Poppins_500Medium, Poppins_600SemiBold, Poppins_700Bold } from '@expo-google-fonts/poppins';
 import { useAppTheme } from '../src/hooks/useAppTheme';
+import { initDatabaseAsync } from '../src/services/sqlite/database';
+import { useUploadSync } from '../src/hooks/useUploadSync';
 
 function AuthGate() {
   const { isAuthenticated, isLoading, user } = useAuth();
@@ -25,6 +27,9 @@ function AuthGate() {
   const { isDark, colors } = useAppTheme();
   const segments = useSegments();
   const router = useRouter();
+
+  // Activate background upload sync when connected to internet
+  useUploadSync();
 
   useEffect(() => {
     // Only proceed if auth has loaded, and if authenticated, ensure the profile belongs to the CURRENT user
@@ -71,6 +76,16 @@ export default function RootLayout() {
     Poppins_600SemiBold,
     Poppins_700Bold,
   });
+
+  useEffect(() => {
+    (async () => {
+      try {
+        await initDatabaseAsync();
+      } catch (err) {
+        console.error('[Root Layout] SQLite initialization failed:', err);
+      }
+    })();
+  }, []);
 
   if (!fontsLoaded) {
     return (

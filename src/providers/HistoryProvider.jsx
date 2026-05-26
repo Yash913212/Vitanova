@@ -62,6 +62,23 @@ export function HistoryProvider({ children }) {
     });
   }, [userEmail]);
 
+  const updateEntryImageUri = useCallback(async (localUri, publicUrl) => {
+    setHistory((prev) => {
+      let changed = false;
+      const next = prev.map((h) => {
+        if (h.imageUri === localUri) {
+          changed = true;
+          return { ...h, imageUri: publicUrl };
+        }
+        return h;
+      });
+      if (!changed) return prev;
+      const key = getUserKey(STORAGE_KEYS.HISTORY, userEmail);
+      setData(key, next);
+      return next;
+    });
+  }, [userEmail]);
+
   const clearHistory = useCallback(async () => {
     setHistory([]);
     const key = getUserKey(STORAGE_KEYS.HISTORY, userEmail);
@@ -83,7 +100,15 @@ export function HistoryProvider({ children }) {
 
   return (
     <HistoryContext.Provider
-      value={{ history, addEntry, deleteEntry, clearHistory, searchHistory, loaded }}
+      value={{
+        history,
+        addEntry,
+        deleteEntry,
+        updateEntryImageUri,
+        clearHistory,
+        searchHistory,
+        loaded,
+      }}
     >
       {children}
     </HistoryContext.Provider>

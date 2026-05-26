@@ -59,6 +59,12 @@ export default function ChatBubble({ message, onSpeak, language = 'en', index = 
           </View>
         )}
 
+        {message.isBlocked && (
+          <View style={[styles.ragBadge, { backgroundColor: COLORS.error + '10', borderColor: COLORS.error + '30', borderWidth: 1, marginTop: 8 }]}>
+            <Text style={[styles.ragBadgeText, { color: COLORS.error }]}>🔒 VitaNova Policy Restricted</Text>
+          </View>
+        )}
+
         {!isUser && onSpeak && (
           <TouchableOpacity
             onPress={() => onSpeak(message.content)}

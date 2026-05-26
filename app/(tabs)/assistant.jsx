@@ -1,7 +1,12 @@
+/**
+ * VitaNova AI — Premium Nutrition Assistant
+ * A highly restricted, intelligent, and beautiful conversational partner.
+ * strictly restricted to food, diet, nutrition, and wellness.
+ */
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, FlatList, KeyboardAvoidingView,
-  Platform, StyleSheet, ScrollView
+  Platform, StyleSheet, ScrollView, Animated, Dimensions
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -9,7 +14,8 @@ import { useAI } from '../../src/providers/AIProvider';
 import { useProfile } from '../../src/providers/ProfileProvider';
 import { useSettings } from '../../src/providers/SettingsProvider';
 import { useNutrition } from '../../src/providers/NutritionProvider';
-import { speak, stop, isSpeaking } from '../../src/services/voiceService';
+import { speak, stop } from '../../src/services/voiceService';
+import { checkTopicGuard } from '../../src/services/topicGuard';
 import ChatBubble from '../../src/components/ChatBubble';
 import EmptyState from '../../src/components/EmptyState';
 import VoiceWaveform from '../../src/components/VoiceWaveform';
@@ -20,42 +26,38 @@ import TabTransitionWrapper from '../../src/components/TabTransitionWrapper';
 import { COLORS, TYPOGRAPHY, SPACING, RADIUS, SHADOWS } from '../../src/utils/theme';
 import { useAppTheme } from '../../src/hooks/useAppTheme';
 
+const { width: SCREEN_WIDTH } = Dimensions.get('window');
+
 const WELCOME = {
-  en: "Hi! I'm NutriVision AI 🥗 Ask me anything about nutrition, diet, or health!",
-  hi: "नमस्ते! मैं NutriVision AI हूँ 🥗 पोषण, आहार या स्वास्थ्य के बारे में कुछ भी पूछें!",
-  te: "హాయ్! నేను NutriVision AI 🥗 పోషణ, ఆహారం లేదా ఆరోగ్యం గురించి ఏదైనా అడగండి!",
+  en: "Hello! I'm VitaNova AI, your supportive personal nutrition coach 🥗 Ask me anything about healthy eating, meal plans, or macro advice! Let's hit your wellness goals together.",
+  hi: "नमस्ते! मैं VitaNova AI हूँ, आपका व्यक्तिगत पोषण कोच 🥗 स्वस्थ खान-पान, भोजन योजना या पोषण तथ्यों के बारे में कुछ भी पूछें!",
+  te: "హాయ్! నేను VitaNova AI, మీ పోషణ కోచ్ 🥗 ఆరోగ్యకరమైన ఆహారాలు, భోజన ప్రణాళిక లేదా పోషకాహారాల గురించి నన్ను ఏదైనా అడగండి!",
 };
 
 const PLACEHOLDER = {
-  en: 'Ask about nutrition...',
-  hi: 'पोषण के बारे में पूछें...',
-  te: 'పోషణ గురించి అడగండి...',
+  en: 'Ask about food, diet, or nutrition...',
+  hi: 'भोजन या पोषण के बारे में पूछें...',
+  te: 'ఆహారం లేదా పోషణ గురించి అడగండి...',
 };
 
-const PILLS = {
+const SUGGESTED_CHIPS = {
   en: [
-    { label: "💪 High Protein", query: "What foods are high in protein?" },
-    { label: "🍊 Vitamin C Fruits", query: "Which fruits contain vitamin C?" },
-    { label: "⚡ Pre-Workout Fuel", query: "Best foods before workout?" },
-    { label: "🩺 Diabetic Safe", query: "What should diabetics avoid?" },
-    { label: "💧 Best Hydration", query: "Best hydration foods?" },
-    { label: "🔥 Fat Loss Diet", query: "What foods help with fat loss?" }
+    { label: "🥚 High Protein", query: "Which foods have high protein?" },
+    { label: "🍌 Pre-Workout Fuel", query: "Best foods to eat before a workout?" },
+    { label: "🥗 Fat Loss Plan", query: "Healthy meal plan for weight loss" },
+    { label: "🍎 Daily Banana?", query: "Can I eat a banana daily?" },
+    { label: "💧 Hydration Goal", query: "How much water should I drink?" },
   ],
   hi: [
-    { label: "💪 उच्च प्रोटीन भोजन", query: "कौन से खाद्य पदार्थों में प्रोटीन अधिक होता है?" },
-    { label: "🍊 विटामिन सी फल", query: "किन फलों में विटामिन सी होता है?" },
-    { label: "⚡ वर्कआउट से पहले", query: "वर्कआउट से पहले क्या खाना सबसे अच्छा है?" },
-    { label: "🩺 मधुमेह के लिए", query: "मधुमेह रोगियों को क्या खाने से बचना चाहिए?" },
-    { label: "💧 बेस्ट हाइड्रेशन", query: "हाइड्रेशन के लिए सबसे अच्छे खाद्य पदार्थ कौन से हैं?" },
-    { label: "🔥 फैट लॉस डाइट", query: "वजन घटाने में कौन से खाद्य पदार्थ मदद करते हैं?" }
+    { label: "🥚 उच्च प्रोटीन भोजन", query: "किन खाद्य पदार्थों में प्रोटीन सबसे ज्यादा होता है?" },
+    { label: "🍌 वर्कआउट ईंधन", query: "कसरत से पहले क्या खाना सबसे अच्छा है?" },
+    { label: "🥗 वजन घटाना", query: "वजन कम करने के लिए डाइट प्लान बताएं" },
+    { label: "🍎 रोजाना फल", query: "क्या मैं रोज सेब खा सकता हूँ?" },
   ],
   te: [
-    { label: "💪 హై ప్రోటీన్", query: "ఏ ఆహారాలలో ప్రోటీన్ ఎక్కువగా ఉంటుంది?" },
-    { label: "🍊 విటమిన్ సి పండ్లు", query: "ఏ పండ్లలో విటమిన్ సి ఉంటుంది?" },
-    { label: "⚡ వ్యాయామానికి ముందు", query: "వ్యాయామానికి ముందు ఏ ఆహారం తినడం మంచిది?" },
-    { label: "🩺 డయాబెటిస్ జాగ్రత్తలు", query: "డయాబెటిస్ ఉన్నవారు ఏ ఆహారాలు తినకూడదు?" },
-    { label: "💧 హైడ్రేషన్ చిట్కాలు", query: "హైడ్రేషన్ కోసం ఉత్తమ ఆహారాలు ఏవి?" },
-    { label: "🔥 ఫ్యాట్ లాస్ డైట్", query: "కొవ్వు తగ్గడానికి ఏ ఆహారాలు సహాయపడతాయి?" }
+    { label: "🥚 హై ప్రోటీన్", query: "ఏ ఆహారంలో ఎక్కువ ప్రోటీన్ ఉంటుంది?" },
+    { label: "🍌 వ్యాయామానికి ముందు", query: "వర్కౌట్ ముందు ఏ ఆహారం తీసుకోవాలి?" },
+    { label: "🥗 కొవ్వు నియంత్రణ", query: "బరువు తగ్గడానికి ఏ రకమైన ఆహారం తినాలి?" },
   ]
 };
 
@@ -78,7 +80,7 @@ export default function AssistantScreen() {
   const params = useLocalSearchParams();
   const router = useRouter();
 
-  // Show welcome message in current language
+  // Welcome banner message setup
   const welcomeMsg = { role: 'assistant', content: WELCOME[activeLang] || WELCOME.en };
   const allMessages = [welcomeMsg, ...messages];
 
@@ -87,7 +89,6 @@ export default function AssistantScreen() {
     setPrevLang(activeLang);
     setIsTranslating(true);
 
-    // Brief translation animation
     setTimeout(() => {
       setActiveLang(langCode);
       setIsTranslating(false);
@@ -105,16 +106,15 @@ export default function AssistantScreen() {
     setSubtitle(text);
     speak(text, activeLang);
 
-    // Estimate speech duration and clear
     const wordCount = text.split(' ').length;
-    const duration = Math.max(wordCount * 350, 2000);
+    const duration = Math.max(wordCount * 360, 2000);
     setTimeout(() => {
       setIsSpeakingNow(false);
       setSubtitle('');
     }, duration);
   }, [isSpeakingNow, activeLang]);
 
-  // Offline fallback function
+  // Fallback offline handler
   const getOfflineResponse = useCallback((text) => {
     const foodWords = text.split(/\s+/).filter((w) => w.length > 2);
     let nutrition = null;
@@ -129,40 +129,61 @@ export default function AssistantScreen() {
     const text = (typeof overrideText === 'string' ? overrideText : input).trim();
     if (!text) return;
 
+    // Add user message to display
     const userMsg = { role: 'user', content: text };
     setMessages((prev) => [...prev, userMsg]);
     setInput('');
     setIsTyping(true);
 
+    // ==========================================
+    // CLIENT-SIDE TOPIC GUARD (STRICT SAFETY)
+    // ==========================================
+    const guard = checkTopicGuard(text, activeLang);
+    if (!guard.allowed) {
+      setTimeout(() => {
+        const refusalMsg = {
+          role: 'assistant',
+          content: guard.refusalMessage,
+          isBlocked: true,
+        };
+        setMessages((prev) => [...prev, refusalMsg]);
+        setIsTyping(false);
+      }, 700); // Small delay to simulate AI thinking
+      return;
+    }
+
     try {
       let response;
 
-      // Try RAG-enabled chat (online/offline internally handled)
-      try {
-        const chatHistory = [...messages, userMsg]
-          .filter((m) => m.role !== 'system')
-          .slice(-10)
-          .map((m) => ({ role: m.role, content: m.content }));
+      // Online route (OpenRouter)
+      if (isOnline) {
+        try {
+          const chatHistory = [...messages, userMsg]
+            .filter((m) => m.role !== 'system')
+            .slice(-10)
+            .map((m) => ({ role: m.role, content: m.content }));
 
-        response = await chat(chatHistory, {
-          profile,
-          language: activeLang,
-        });
-      } catch (aiError) {
-        // Fallback fail-safe
+          response = await chat(chatHistory, {
+            profile,
+            language: activeLang,
+          });
+        } catch (apiError) {
+          console.warn('[Assistant] Online chat failed, falling back offline:', apiError.message);
+          response = getOfflineResponse(text);
+          response = `📡 **[Offline Mode — Local Database]**\n\n${response}`;
+        }
+      } else {
+        // Offline route
         response = getOfflineResponse(text);
-        response = `📡 (Offline mode)\n\n${response}`;
+        response = `📡 **[Offline Mode — Local Database]**\n\n${response}`;
       }
 
-      // Check if response contains hallmarks of RAG source verified content
+      // Check if response contains typical database content to flag as RAG
       const isRagResponse = response.includes('According to the local database') ||
                             response.includes('स्थानीय डेटाबेस') ||
-                            response.includes('స్థానిక డేటాబేస్') ||
                             response.includes('Verified') ||
                             response.includes('📡') ||
-                            response.includes('Source') ||
-                            response.includes('nutrition') ||
-                            (!response.startsWith("I'm having trouble") && !response.includes("trouble right now"));
+                            response.includes('per 100g');
 
       const aiMsg = { role: 'assistant', content: response, isRAG: isRagResponse };
       setMessages((prev) => [...prev, aiMsg]);
@@ -173,15 +194,15 @@ export default function AssistantScreen() {
     } catch (e) {
       const errMsg = {
         role: 'assistant',
-        content: `I'm having trouble right now. Try asking about a specific food like "apple" or "rice".`,
+        content: `I couldn't complete the request. Let's focus on healthy eating: ask me about foods like apple, spinach, or general diet planning!`,
       };
       setMessages((prev) => [...prev, errMsg]);
     } finally {
       setIsTyping(false);
     }
-  }, [input, messages, chat, profile, settings, activeLang, getOfflineResponse, handleSpeak]);
+  }, [input, messages, chat, profile, settings, activeLang, getOfflineResponse, handleSpeak, isOnline]);
 
-  // Transition query listener
+  // Handle queries passed from details screen or navigation search
   useEffect(() => {
     if (params?.query) {
       sendMessage(params.query);
@@ -192,138 +213,136 @@ export default function AssistantScreen() {
   return (
     <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
       <TabTransitionWrapper>
-      {/* Header */}
-      <View style={[styles.header, { backgroundColor: colors.surface }]}>
-        <View style={styles.headerLeft}>
-          <Text style={styles.headerIcon}>🤖</Text>
-          <View>
-            <Text style={[styles.headerTitle, { color: colors.textPrimary }]}>AI Assistant</Text>
-            <Text style={[styles.headerSub, { color: colors.textSecondary }]}>
-              {isOnline ? '🟢 Online' : '🟡 Offline'}
+        {/* Header */}
+        <View style={[styles.header, { backgroundColor: colors.surface, borderBottomColor: colors.borderLight }]}>
+          <View style={styles.headerLeft}>
+            <View style={[styles.botIconWrap, { backgroundColor: colors.primary + '12' }]}>
+              <Text style={styles.headerIcon}>🌱</Text>
+            </View>
+            <View>
+              <Text style={[styles.headerTitle, { color: colors.textPrimary }]}>VitaNova AI</Text>
+              <Text style={[styles.headerSub, { color: colors.textSecondary }]}>
+                {isOnline ? '🟢 Connected Coach' : '📡 Offline Database'}
+              </Text>
+            </View>
+          </View>
+          <View style={[styles.badge, { backgroundColor: isOnline ? '#10B98115' : '#F59E0B15' }]}>
+            <Text style={[styles.badgeText, { color: isOnline ? '#10B981' : '#F59E0B' }]}>
+              {isOnline ? 'ONLINE' : 'OFFLINE'}
             </Text>
           </View>
         </View>
-      </View>
 
-      {/* Translation indicator */}
-      {isTranslating && (
-        <View style={styles.translationWrap}>
-          <TranslationIndicator
-            isTranslating={isTranslating}
-            fromLang={prevLang}
-            toLang={activeLang}
-          />
-        </View>
-      )}
-
-      {/* Messages */}
-      <FlatList
-        ref={flatListRef}
-        data={allMessages}
-        keyExtractor={(_, i) => i.toString()}
-        renderItem={({ item, index }) => (
-          <ChatBubble
-            message={item}
-            onSpeak={item.role === 'assistant' ? handleSpeak : null}
-            language={activeLang}
-            index={index}
-          />
+        {/* Translation Indicator */}
+        {isTranslating && (
+          <View style={styles.translationWrap}>
+            <TranslationIndicator
+              isTranslating={isTranslating}
+              fromLang={prevLang}
+              toLang={activeLang}
+            />
+          </View>
         )}
-        contentContainerStyle={styles.msgList}
-        onContentSizeChange={() => flatListRef.current?.scrollToEnd()}
-        ListEmptyComponent={
-          <EmptyState icon="💬" title="Start a conversation" message="Ask about nutrition, diet, or health" />
-        }
-      />
 
-      {/* Voice waveform + subtitle overlay */}
-      {isSpeakingNow && (
-        <View style={[styles.voiceOverlay, { backgroundColor: colors.surface }]}>
-          <VoiceWaveform isActive={true} language={activeLang} size="medium" />
-          <AnimatedSubtitle text={subtitle} language={activeLang} visible={true} />
-          <TouchableOpacity style={styles.stopBtn} onPress={() => handleSpeak('')}>
-            <Text style={styles.stopText}>⏹ Stop</Text>
-          </TouchableOpacity>
-        </View>
-      )}
+        {/* Conversation List */}
+        <FlatList
+          ref={flatListRef}
+          data={allMessages}
+          keyExtractor={(_, i) => i.toString()}
+          renderItem={({ item, index }) => (
+            <ChatBubble
+              message={item}
+              onSpeak={item.role === 'assistant' ? handleSpeak : null}
+              language={activeLang}
+              index={index}
+            />
+          )}
+          contentContainerStyle={styles.msgList}
+          onContentSizeChange={() => flatListRef.current?.scrollToEnd({ animated: true })}
+          ListEmptyComponent={
+            <EmptyState icon="💬" title="Start your coaching session" message="Ask about healthy recipes, calorie counts, or protein amounts" />
+          }
+        />
 
-      {/* Typing indicator */}
-      {isTyping && (
-        <View style={styles.typingWrap}>
-          <VoiceWaveform isActive={true} language={activeLang} size="small" />
-          <Text style={[styles.typingText, { color: colors.textSecondary }]}>Thinking...</Text>
-        </View>
-      )}
+        {/* Voice Playback Overlay */}
+        {isSpeakingNow && (
+          <View style={[styles.voiceOverlay, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+            <VoiceWaveform isActive={true} language={activeLang} size="medium" />
+            <AnimatedSubtitle text={subtitle} language={activeLang} visible={true} />
+            <TouchableOpacity style={styles.stopBtn} onPress={() => handleSpeak('')}>
+              <Text style={styles.stopText}>⏹ Stop Coach Voice</Text>
+            </TouchableOpacity>
+          </View>
+        )}
 
-      {/* Input */}
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        keyboardVerticalOffset={90}
-        style={styles.keyboardContainer}
-      >
-        {/* RAG Query Suggestion Pills */}
-        <View style={{ backgroundColor: colors.glassBg, borderTopWidth: 1, borderTopColor: colors.borderLight, paddingTop: SPACING.xs, paddingBottom: 2 }}>
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.pillsScrollContainer}
-          >
-            {(PILLS[activeLang] || PILLS.en).map((pill, i) => (
-              <TouchableOpacity
-                key={i}
-                style={[styles.pill, { backgroundColor: colors.surface, borderColor: colors.borderLight }]}
-                onPress={() => sendMessage(pill.query)}
-                disabled={isTyping}
-                activeOpacity={0.7}
-              >
-                <Text style={[styles.pillText, { color: colors.textPrimary }]}>{pill.label}</Text>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
-        </View>
+        {/* Typing / Thinking Indicator */}
+        {isTyping && (
+          <View style={styles.typingWrap}>
+            <View style={[styles.dotAnimWrap, { backgroundColor: colors.surfaceAlt }]}>
+              <Text style={styles.typingEmoji}>🤔</Text>
+              <Text style={[styles.typingText, { color: colors.textSecondary }]}>VitaNova AI is thinking...</Text>
+            </View>
+          </View>
+        )}
 
-        {/* Language selector floating right above input row */}
-        <View style={[styles.languageSwitcherContainer, { backgroundColor: colors.glassBg, borderTopColor: colors.borderLight, borderTopWidth: 0 }]}>
-          <Text style={[styles.langBarTitle, { color: colors.textSecondary }]}>Choose Language:</Text>
-          <LanguageSwitcher
-            activeLanguage={activeLang}
-            onSelect={handleLanguageSwitch}
-          />
-        </View>
+        {/* Input area & quick chips */}
+        <KeyboardAvoidingView
+          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+          keyboardVerticalOffset={Platform.OS === 'ios' ? 90 : 0}
+          style={styles.keyboardContainer}
+        >
+          {/* Quick Suggestions Chips */}
+          <View style={[styles.pillsWrap, { backgroundColor: colors.glassBg, borderTopColor: colors.borderLight }]}>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.pillsScrollContainer}
+            >
+              {(SUGGESTED_CHIPS[activeLang] || SUGGESTED_CHIPS.en).map((pill, i) => (
+                <TouchableOpacity
+                  key={i}
+                  style={[styles.pill, { backgroundColor: colors.surface, borderColor: colors.borderLight }]}
+                  onPress={() => sendMessage(pill.query)}
+                  disabled={isTyping}
+                  activeOpacity={0.7}
+                >
+                  <Text style={[styles.pillText, { color: colors.primary }]}>{pill.label}</Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
 
-        <View style={[styles.inputRow, { backgroundColor: colors.surface, borderTopColor: colors.borderLight }]}>
-          <TouchableOpacity
-            style={[styles.voiceInputBtn, isSpeakingNow && styles.voiceInputBtnActive]}
-            onPress={() => {
-              if (isSpeakingNow) {
-                stop();
-                setIsSpeakingNow(false);
-                setSubtitle('');
-              }
-            }}
-          >
-            <Text style={styles.voiceInputIcon}>{isSpeakingNow ? '🔇' : '🎤'}</Text>
-          </TouchableOpacity>
-          <TextInput
-            style={[styles.input, { backgroundColor: colors.surfaceAlt, color: colors.textPrimary }]}
-            value={input}
-            onChangeText={setInput}
-            placeholder={PLACEHOLDER[activeLang] || PLACEHOLDER.en}
-            placeholderTextColor={colors.textTertiary}
-            multiline
-            maxLength={500}
-            onSubmitEditing={sendMessage}
-            returnKeyType="send"
-          />
-          <TouchableOpacity
-            style={[styles.sendBtn, !input.trim() && styles.sendBtnDisabled]}
-            onPress={sendMessage}
-            disabled={!input.trim() || isTyping}
-          >
-            <Text style={styles.sendIcon}>➤</Text>
-          </TouchableOpacity>
-        </View>
-      </KeyboardAvoidingView>
+          {/* Language Switcher Bar */}
+          <View style={[styles.languageSwitcherContainer, { backgroundColor: colors.glassBg }]}>
+            <Text style={[styles.langBarTitle, { color: colors.textSecondary }]}>Preferred Language:</Text>
+            <LanguageSwitcher
+              activeLanguage={activeLang}
+              onSelect={handleLanguageSwitch}
+            />
+          </View>
+
+          {/* Typing input */}
+          <View style={[styles.inputRow, { backgroundColor: colors.surface, borderTopColor: colors.borderLight }]}>
+            <TextInput
+              style={[styles.input, { backgroundColor: colors.surfaceAlt, color: colors.textPrimary }]}
+              value={input}
+              onChangeText={setInput}
+              placeholder={PLACEHOLDER[activeLang] || PLACEHOLDER.en}
+              placeholderTextColor={colors.textTertiary}
+              multiline
+              maxLength={500}
+              returnKeyType="send"
+              onSubmitEditing={() => sendMessage()}
+            />
+            <TouchableOpacity
+              style={[styles.sendBtn, !input.trim() && styles.sendBtnDisabled]}
+              onPress={() => sendMessage()}
+              disabled={!input.trim() || isTyping}
+            >
+              <Text style={styles.sendIcon}>▲</Text>
+            </TouchableOpacity>
+          </View>
+        </KeyboardAvoidingView>
       </TabTransitionWrapper>
     </SafeAreaView>
   );
@@ -331,105 +350,62 @@ export default function AssistantScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: COLORS.background },
-  keyboardContainer: { paddingBottom: 72 },
+  keyboardContainer: { paddingBottom: Platform.OS === 'ios' ? 44 : 54 },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingVertical: SPACING.sm,
-    paddingHorizontal: SPACING.md,
-    backgroundColor: COLORS.surface,
+    paddingVertical: SPACING.md,
+    paddingHorizontal: SPACING.lg,
+    borderBottomWidth: 1,
     ...SHADOWS.sm,
   },
-  headerLeft: { flexDirection: 'row', alignItems: 'center' },
-  headerIcon: { fontSize: 28, marginRight: SPACING.sm },
-  headerTitle: { fontSize: TYPOGRAPHY.h4, fontWeight: TYPOGRAPHY.bold, color: COLORS.textPrimary },
-  headerSub: { fontSize: TYPOGRAPHY.tiny, color: COLORS.textTertiary },
+  headerLeft: { flexDirection: 'row', alignItems: 'center', gap: SPACING.sm },
+  botIconWrap: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
+  headerIcon: { fontSize: 22 },
+  headerTitle: { fontSize: 16, fontWeight: '700' },
+  headerSub: { fontSize: 10, marginTop: 1 },
+  badge: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: RADIUS.full },
+  badgeText: { fontSize: 9, fontWeight: '800', letterSpacing: 0.5 },
   translationWrap: { paddingVertical: SPACING.xs, alignItems: 'center' },
-  msgList: { padding: SPACING.md, paddingBottom: SPACING.md },
+  msgList: { padding: SPACING.md, paddingBottom: 120 },
   voiceOverlay: {
-    backgroundColor: COLORS.surface,
-    marginHorizontal: SPACING.md,
+    margin: SPACING.md,
     borderRadius: RADIUS.lg,
     padding: SPACING.md,
     gap: SPACING.sm,
-    ...SHADOWS.md,
+    borderWidth: 1,
+    ...SHADOWS.lg,
+    position: 'absolute',
+    bottom: 220,
+    left: 0,
+    right: 0,
+    zIndex: 99,
   },
   stopBtn: {
     alignSelf: 'center',
-    paddingHorizontal: SPACING.lg,
-    paddingVertical: SPACING.xs,
+    paddingHorizontal: SPACING.xl,
+    paddingVertical: 8,
     borderRadius: RADIUS.full,
-    backgroundColor: COLORS.error + '15',
+    backgroundColor: COLORS.error + '18',
   },
-  stopText: { fontSize: TYPOGRAPHY.caption, color: COLORS.error, fontWeight: TYPOGRAPHY.semiBold },
+  stopText: { fontSize: 11, color: COLORS.error, fontWeight: '700' },
   typingWrap: {
-    flexDirection: 'row',
-    alignItems: 'center',
     paddingHorizontal: SPACING.lg,
-    paddingBottom: SPACING.xs,
-    gap: SPACING.sm,
-  },
-  typingText: { fontSize: TYPOGRAPHY.caption, color: COLORS.textTertiary, fontStyle: 'italic' },
-  inputRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-end',
-    padding: SPACING.sm,
-    paddingHorizontal: SPACING.md,
-    backgroundColor: COLORS.surface,
-    borderTopWidth: 1,
-    borderTopColor: COLORS.border,
-  },
-  voiceInputBtn: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
-    backgroundColor: COLORS.surfaceAlt,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: SPACING.xs,
-  },
-  voiceInputBtnActive: { backgroundColor: COLORS.error + '20' },
-  voiceInputIcon: { fontSize: 18 },
-  input: {
-    flex: 1,
-    backgroundColor: COLORS.surfaceAlt,
-    borderRadius: RADIUS.xl,
-    paddingHorizontal: SPACING.lg,
-    paddingVertical: SPACING.sm,
-    fontSize: TYPOGRAPHY.bodySmall,
-    color: COLORS.textPrimary,
-    maxHeight: 100,
-    marginRight: SPACING.xs,
-  },
-  sendBtn: {
-    width: 42,
-    height: 42,
-    borderRadius: 21,
-    backgroundColor: COLORS.primary,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  sendBtnDisabled: { backgroundColor: COLORS.border },
-  sendIcon: { fontSize: 18, color: COLORS.textInverse },
-  languageSwitcherContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: SPACING.md,
     paddingVertical: SPACING.xs,
-    backgroundColor: 'rgba(255, 255, 255, 0.85)',
-    borderTopWidth: 1,
-    borderTopColor: COLORS.border,
-    paddingBottom: 6,
+    alignSelf: 'flex-start',
   },
-  langBarTitle: {
-    fontSize: 11,
-    color: COLORS.textSecondary,
-    fontFamily: TYPOGRAPHY.poppinsBold,
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
+  dotAnimWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: RADIUS.full,
   },
+  typingEmoji: { fontSize: 14 },
+  typingText: { fontSize: 11, fontStyle: 'italic' },
+  pillsWrap: { borderTopWidth: 1 },
   pillsScrollContainer: {
     paddingHorizontal: SPACING.md,
     paddingVertical: SPACING.xs,
@@ -437,15 +413,53 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
   },
   pill: {
-    paddingHorizontal: SPACING.md,
+    paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: RADIUS.full,
     borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  pillText: {
-    fontSize: 12,
-    fontWeight: '600',
+  pillText: { fontSize: 11, fontWeight: '700' },
+  languageSwitcherContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: SPACING.lg,
+    paddingVertical: SPACING.xs,
+    paddingBottom: 6,
   },
+  langBarTitle: {
+    fontSize: 10,
+    fontFamily: TYPOGRAPHY.poppinsBold,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  inputRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: SPACING.sm,
+    paddingHorizontal: SPACING.md,
+    borderTopWidth: 1,
+  },
+  input: {
+    flex: 1,
+    borderRadius: RADIUS.xl,
+    paddingHorizontal: SPACING.lg,
+    paddingVertical: 10,
+    fontSize: 13,
+    maxHeight: 80,
+    marginRight: SPACING.sm,
+  },
+  sendBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: COLORS.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+    ...SHADOWS.sm,
+  },
+  sendBtnDisabled: { backgroundColor: COLORS.border },
+  sendIcon: { fontSize: 16, color: COLORS.textInverse, fontWeight: 'bold' },
 });

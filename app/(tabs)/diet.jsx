@@ -1,5 +1,5 @@
 /**
- * NutriVision AI — Diet Screen
+ * VitaNova — Diet Screen with Premium Expandable Food Cards
  */
 import React, { useState, useMemo, useCallback } from 'react';
 import {
@@ -11,6 +11,7 @@ import { useNutrition } from '../../src/providers/NutritionProvider';
 import { COLORS, TYPOGRAPHY, SPACING, RADIUS, SHADOWS } from '../../src/utils/theme';
 import { useAppTheme } from '../../src/hooks/useAppTheme';
 import TabTransitionWrapper from '../../src/components/TabTransitionWrapper';
+import ExpandableFoodCard from '../../src/components/ExpandableFoodCard';
 
 const CATEGORIES = ['All', 'Fruit', 'Vegetable', 'Grain', 'Protein', 'Dairy', 'Nut'];
 
@@ -133,36 +134,15 @@ export default function DietScreen() {
         </ScrollView>
 
         {/* Food list */}
+        {/* Food list — Premium Expandable Cards */}
         {foods.map((food, i) => (
-          <View key={i} style={[styles.foodCard, { backgroundColor: colors.surface }]}>
-            <View style={styles.foodHeader}>
-              <Text style={[styles.foodName, { color: colors.textPrimary }]}>{food.name}</Text>
-              <View style={styles.calBadge}>
-                <Text style={styles.calText}>{food.calories} kcal</Text>
-              </View>
-            </View>
-            <View style={styles.macroRow}>
-              <MacroPill label="P" value={food.protein} color={colors.primary} />
-              <MacroPill label="C" value={food.carbs} color={colors.warning} />
-              <MacroPill label="F" value={food.fats} color={colors.accent} />
-              <MacroPill label="Fiber" value={food.fiber} color={colors.success} />
-            </View>
-            <Text style={[styles.foodBenefits, { color: colors.textSecondary }]} numberOfLines={2}>{food.benefits}</Text>
-          </View>
+          <ExpandableFoodCard key={food.name || i} food={food} index={i} />
         ))}
 
         <View style={{ height: 30 }} />
       </ScrollView>
       </TabTransitionWrapper>
     </SafeAreaView>
-  );
-}
-
-function MacroPill({ label, value, color }) {
-  return (
-    <View style={[styles.pill, { backgroundColor: color + '15' }]}>
-      <Text style={[styles.pillText, { color }]}>{label}: {value}g</Text>
-    </View>
   );
 }
 
@@ -212,22 +192,5 @@ const styles = StyleSheet.create({
     borderRadius: RADIUS.full, backgroundColor: COLORS.surfaceAlt,
     marginRight: SPACING.sm, borderWidth: 1, borderColor: COLORS.border,
   },
-  chipActive: { backgroundColor: COLORS.primarySurface, borderColor: COLORS.primary },
   chipText: { fontSize: TYPOGRAPHY.caption, color: COLORS.textSecondary, fontFamily: TYPOGRAPHY.poppinsMedium },
-  chipTextActive: { color: COLORS.primaryDark, fontFamily: TYPOGRAPHY.poppinsBold },
-  foodCard: {
-    backgroundColor: 'rgba(255, 255, 255, 0.70)',
-    borderColor: 'rgba(255, 255, 255, 0.40)',
-    borderWidth: 1,
-    borderRadius: RADIUS.lg,
-    padding: SPACING.md, marginBottom: SPACING.sm, ...SHADOWS.sm,
-  },
-  foodHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 },
-  foodName: { fontSize: TYPOGRAPHY.body, color: COLORS.textPrimary, fontFamily: TYPOGRAPHY.poppinsSemiBold },
-  calBadge: { backgroundColor: COLORS.error + '12', paddingHorizontal: 8, paddingVertical: 2, borderRadius: RADIUS.sm },
-  calText: { fontSize: TYPOGRAPHY.tiny, color: COLORS.error, fontFamily: TYPOGRAPHY.poppinsBold },
-  macroRow: { flexDirection: 'row', gap: 6, marginBottom: 6 },
-  pill: { paddingHorizontal: 8, paddingVertical: 2, borderRadius: RADIUS.full },
-  pillText: { fontSize: TYPOGRAPHY.tiny, fontFamily: TYPOGRAPHY.poppinsSemiBold },
-  foodBenefits: { fontSize: TYPOGRAPHY.caption, color: COLORS.textTertiary, lineHeight: 18 },
 });

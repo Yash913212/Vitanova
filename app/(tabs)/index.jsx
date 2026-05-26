@@ -7,6 +7,9 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import * as ImagePicker from 'expo-image-picker';
+import * as ImageManipulator from 'expo-image-manipulator';
+import * as FileSystem from 'expo-file-system';
+import { addPendingUpload } from '../../src/services/sqlite/database';
 import { useAI } from '../../src/providers/AIProvider';
 import { useNutrition } from '../../src/providers/NutritionProvider';
 import { useHistory } from '../../src/providers/HistoryProvider';
@@ -256,30 +259,66 @@ export default function ScanScreen() {
         }
         result = await ImagePicker.launchCameraAsync({
           mediaTypes: ['images'],
-          quality: 0.7,
+          quality: 0.8,
           allowsEditing: true,
           aspect: [4, 3],
         });
       } else {
         result = await ImagePicker.launchImageLibraryAsync({
           mediaTypes: ['images'],
-          quality: 0.7,
+          quality: 0.8,
           allowsEditing: true,
           aspect: [4, 3],
         });
       }
 
       if (!result.canceled && result.assets?.[0]) {
-        const uri = result.assets[0].uri;
-        setImageUri(uri);
+        const originalUri = result.assets[0].uri;
+        setLoading(true);
+
+        console.log('[Scan Screen] Compressing image:', originalUri);
+        
+        // 1. Compress image: resize to 800px width, 60% compression quality, JPEG format
+        const manipResult = await ImageManipulator.manipulateAsync(
+          originalUri,
+          [{ resize: { width: 800 } }],
+          { compress: 0.6, format: ImageManipulator.SaveFormat.JPEG }
+        );
+
+        console.log('[Scan Screen] Image compressed successfully to:', manipResult.uri);
+
+        // 2. Prepare persistent directory scans/
+        const scansDir = `${FileSystem.documentDirectory}scans/`;
+        const dirInfo = await FileSystem.getInfoAsync(scansDir);
+        if (!dirInfo.exists) {
+          await FileSystem.makeDirectoryAsync(scansDir, { intermediates: true });
+        }
+
+        // 3. Move/Copy compressed file from temporary cache to persistent location
+        const fileName = `${Date.now()}_scan.jpg`;
+        const persistentUri = `${scansDir}${fileName}`;
+        await FileSystem.copyAsync({
+          from: manipResult.uri,
+          to: persistentUri,
+        });
+
+        console.log('[Scan Screen] Persistent local file saved at:', persistentUri);
+
+        // 4. Register in SQLite pending_uploads queue for offline-first sync
+        await addPendingUpload(persistentUri);
+
+        // 5. Update local view variables & run vision logic on local persistent file
+        setImageUri(persistentUri);
         setScanResult(null);
         setNutritionData(null);
         setGuidance(null);
-        // Auto-trigger analysis immediately after crop
-        analyzeFromUri(uri);
+        setLoading(false);
+        analyzeFromUri(persistentUri);
       }
     } catch (e) {
-      setError('Failed to pick image. Please try again.');
+      console.error('[Scan Screen] Image pick & compression failed:', e);
+      setLoading(false);
+      setError('Failed to pick and optimize image. Please try again.');
     }
   }, [analyzeFromUri]);
 

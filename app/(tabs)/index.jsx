@@ -10,6 +10,7 @@ import {
   View, Text, TextInput, TouchableOpacity, ScrollView, Alert, StyleSheet, Animated, Image, Dimensions, Modal, ActivityIndicator, FlatList
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { useRouter } from 'expo-router';
 import Svg, { Circle, Path, Defs, LinearGradient, Stop } from 'react-native-svg';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as ImagePicker from 'expo-image-picker';
@@ -95,6 +96,7 @@ function ProgressRing({ size = 70, strokeWidth = 6, percentage = 0, gradStart, g
 }
 
 export default function PremiumDashboard() {
+  const router = useRouter();
   const { colors, isDark } = useAppTheme();
   const { recognizeFood, chat, isOnline } = useAI();
   const { getNutrition, getGuidance } = useNutrition();
@@ -608,7 +610,7 @@ export default function PremiumDashboard() {
                 <Text style={[styles.quickLabel, { color: colors.textPrimary }]}>+250ml</Text>
               </TouchableOpacity>
 
-              <TouchableOpacity style={[styles.quickCard, { backgroundColor: colors.glassBg, borderColor: colors.glassBorder }]} onPress={() => Alert.alert('Favorite Foods', `Superfoods from catalog:\n• Apple (Score: 9.2)\n• Spinach (Score: 9.5)\n• Tofu (Score: 8.8)\n• Walnut (Score: 9.0)`)}>
+              <TouchableOpacity style={[styles.quickCard, { backgroundColor: colors.glassBg, borderColor: colors.glassBorder }]} onPress={() => router.push('/favorites')}>
                 <View style={[styles.quickIconWrap, { backgroundColor: '#F59E0B20' }]}>
                   <Text style={styles.quickEmoji}>⭐</Text>
                 </View>

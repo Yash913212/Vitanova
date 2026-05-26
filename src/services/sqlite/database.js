@@ -57,6 +57,11 @@ export async function initDatabaseAsync() {
       recommended_qty TEXT,
       hydration REAL
     );
+
+    CREATE TABLE IF NOT EXISTS favorites (
+      key TEXT PRIMARY KEY,
+      added_at INTEGER
+    );
   `);
 
   console.log('[SQLite DB] Schema check/setup completed successfully.');
@@ -281,5 +286,66 @@ export async function incrementRetryCount(id) {
     );
   } catch (error) {
     console.error('[SQLite DB] incrementRetryCount failed:', error);
+  }
+}
+
+/**
+ * Add a food key to user favorites list.
+ */
+export async function addFavoriteAsync(key) {
+  if (!key) return;
+  const db = await getDB();
+  try {
+    await db.runAsync(
+      'INSERT OR IGNORE INTO favorites (key, added_at) VALUES (?, ?)',
+      key,
+      Date.now()
+    );
+    console.log('[SQLite DB] Added food to favorites:', key);
+  } catch (error) {
+    console.error('[SQLite DB] addFavoriteAsync failed:', error);
+  }
+}
+
+/**
+ * Remove a food key from user favorites list.
+ */
+export async function removeFavoriteAsync(key) {
+  if (!key) return;
+  const db = await getDB();
+  try {
+    await db.runAsync('DELETE FROM favorites WHERE key = ?', key);
+    console.log('[SQLite DB] Removed food from favorites:', key);
+  } catch (error) {
+    console.error('[SQLite DB] removeFavoriteAsync failed:', error);
+  }
+}
+
+/**
+ * Fetch all favorited food keys from user favorites.
+ */
+export async function getFavoritesAsync() {
+  const db = await getDB();
+  try {
+    const rows = await db.getAllAsync('SELECT key FROM favorites ORDER BY added_at DESC');
+    return rows.map(r => r.key);
+  } catch (error) {
+    console.error('[SQLite DB] getFavoritesAsync failed:', error);
+    return [];
+  }
+}
+
+/**
+ * Check if a food key is favorited.
+ */
+export async function isFavoriteAsync(key) {
+  if (!key) return false;
+  const db = await getDB();
+  try {
+    const row = await db.getFirstAsync('SELECT key FROM favorites WHERE key = ?', key);
+    return !!row;
+  } catch (error) {
+    console.error('[SQLite DB] isFavoriteAsync failed:', error);
+    return false;
   }
 }

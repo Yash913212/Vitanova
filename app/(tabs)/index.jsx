@@ -971,10 +971,12 @@ export default function PremiumDashboard() {
                 <Text style={[styles.pickerTitle, { color: colors.textSecondary }]}>Take a photo or pick from photo gallery to start scanning:</Text>
                 <View style={styles.modalActionRow}>
                   <TouchableOpacity style={[styles.modalPickBtn, { backgroundColor: colors.primary }]} onPress={() => pickImage(true)}>
-                    <Text style={styles.modalPickBtnText}>📸 Camera</Text>
+                    <Text style={styles.modalPickEmoji}>📸</Text>
+                    <Text style={styles.modalPickBtnText}>Camera</Text>
                   </TouchableOpacity>
                   <TouchableOpacity style={[styles.modalPickBtn, { backgroundColor: colors.accent }]} onPress={() => pickImage(false)}>
-                    <Text style={styles.modalPickBtnText}>🖼️ Gallery</Text>
+                    <Text style={styles.modalPickEmoji}>🖼️</Text>
+                    <Text style={styles.modalPickBtnText}>Gallery</Text>
                   </TouchableOpacity>
                 </View>
               </View>
@@ -1282,11 +1284,12 @@ const styles = StyleSheet.create({
   modalScroll: { flex: 1 },
   modalScrollContent: { padding: SPACING.lg, paddingBottom: 64 },
 
-  pickerSection: { alignItems: 'center', paddingVertical: SPACING.xxl },
-  pickerTitle: { fontSize: TYPOGRAPHY.bodySmall, fontFamily: TYPOGRAPHY.poppinsMedium, textAlign: 'center', marginBottom: SPACING.lg },
-  modalActionRow: { flexDirection: 'row', gap: SPACING.lg },
-  modalPickBtn: { flex: 1, paddingVertical: 14, borderRadius: RADIUS.xl, alignItems: 'center', ...SHADOWS.md },
+  pickerSection: { alignItems: 'center', paddingVertical: SPACING.xxl, width: '100%' },
+  pickerTitle: { fontSize: TYPOGRAPHY.bodySmall, fontFamily: TYPOGRAPHY.poppinsMedium, textAlign: 'center', marginBottom: SPACING.lg, paddingHorizontal: SPACING.md },
+  modalActionRow: { flexDirection: 'row', gap: SPACING.md, width: '100%', alignSelf: 'stretch', paddingHorizontal: SPACING.sm },
+  modalPickBtn: { flex: 1, flexDirection: 'row', paddingVertical: 14, borderRadius: RADIUS.xl, alignItems: 'center', justifyContent: 'center', gap: SPACING.sm, ...SHADOWS.md },
   modalPickBtnText: { fontSize: TYPOGRAPHY.bodySmall, fontFamily: TYPOGRAPHY.poppinsBold, color: '#FFF' },
+  modalPickEmoji: { fontSize: TYPOGRAPHY.bodySmall },
 
   // Lookup sub widgets
   searchBoxCard: { borderWidth: 1, borderRadius: RADIUS.xl, padding: SPACING.lg, marginBottom: SPACING.lg, ...SHADOWS.sm },

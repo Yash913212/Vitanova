@@ -1,9 +1,9 @@
 /**
  * VitaNova AI — Premium AI-Powered Personalized Diet & Meal Planner
- * A futuristic cybernetic nutrition planning ecosystem.
- * Features a dark theme, glowing macro analytics, expandable timeline,
- * instant AI meal swaps, plant-based conversions, protein boosts,
- * voice meal guides, and interactive AI grocery checklist cards.
+ * A futuristic cybernetic nutrition planning ecosystem with dynamic light/dark mode.
+ * Features customizable goals, dynamic greeting title headers, active macro targets,
+ * expandable meal timeline card triggers, smart ingredient replacements,
+ * veg converter, protein boosters, voice explanation guides, and grocery modal sheets.
  */
 import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import {
@@ -17,14 +17,13 @@ import { useNutrition } from '../../src/providers/NutritionProvider';
 import { useAI } from '../../src/providers/AIProvider';
 import { useSettings } from '../../src/providers/SettingsProvider';
 import { useHistory } from '../../src/providers/HistoryProvider';
+import { useAppTheme } from '../../src/hooks/useAppTheme';
 import { speak } from '../../src/services/voiceService';
 import { COLORS, TYPOGRAPHY, SPACING, RADIUS, SHADOWS } from '../../src/utils/theme';
-import { useAppTheme } from '../../src/hooks/useAppTheme';
 import TabTransitionWrapper from '../../src/components/TabTransitionWrapper';
 import ExpandableFoodCard from '../../src/components/ExpandableFoodCard';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
-const CARD_WIDTH = SCREEN_WIDTH - 32;
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
   UIManager.setLayoutAnimationEnabledExperimental(true);
@@ -41,7 +40,7 @@ const WEEKDAYS = [
   { key: 'Sun', label: 'Sun', day: 'Sunday' },
 ];
 
-// Offline meal plans template database
+// Meal Plans Templates Database
 const MEAL_PLANS_TEMPLATE = {
   fat_loss: [
     { id: 'b', type: 'Breakfast', time: '7:00 AM', items: 'Oats porridge with chia seeds and half sliced banana', calories: 350, protein: 12, carbs: 55, fats: 8, ingredients: ['Rolled Oats (50g)', 'Almond Milk (200ml)', 'Chia Seeds (10g)', 'Banana (50g)'], tips: 'Cook on low heat, stir continuously, top with walnuts.', digestion: 'High Fiber — slow digestive release', maxQty: '1 bowl (300g)' },
@@ -88,19 +87,8 @@ const LOCAL_SWAPS = {
   'Baked salmon fillet with roasted sweet potatoes and asparagus spears': { label: 'Steamed sea bass fillet with sweet potato mash and sautéed green beans', calories: 520, protein: 38, ingredients: ['Sea Bass (150g)', 'Sweet Potato (120g)'] },
 };
 
-// UI Theme overrides for Dark Cyber Theme
-const CYBER_COLORS = {
-  bg: '#080C14',
-  cardBg: 'rgba(13, 21, 39, 0.75)',
-  border: 'rgba(0, 242, 155, 0.25)',
-  glowGreen: '#00F29B',
-  glowPurple: '#A855F7',
-  textMain: '#F8FAFC',
-  textMuted: '#94A3B8',
-};
-
 export default function PremiumDietPlanner() {
-  const { colors } = useAppTheme();
+  const { colors, isDark } = useAppTheme();
   const { profile } = useProfile();
   const { searchFoods, getAllFoods } = useNutrition();
   const { chat, isOnline } = useAI();
@@ -302,11 +290,6 @@ export default function PremiumDietPlanner() {
     return list.slice(0, 10);
   }, [searchQuery, activeCategory, searchFoods, getAllFoods]);
 
-  // Greeting
-  const hour = new Date().getHours();
-  const greetingText = hour < 12 ? 'Good Morning' : hour < 17 ? 'Good Afternoon' : 'Good Evening';
-  const nickname = profile.nickname || 'Explorer';
-
   // SVG Circular progress ring parameters
   const ringSize = 100;
   const strokeWidth = 9;
@@ -316,29 +299,22 @@ export default function PremiumDietPlanner() {
   const strokeDashoffset = circumference - (caloriePercent / 100) * circumference;
 
   return (
-    <SafeAreaView style={[styles.container, { backgroundColor: CYBER_COLORS.bg }]}>
+    <SafeAreaView style={[styles.container, { backgroundColor: colors.background }]}>
       <TabTransitionWrapper>
         <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
           
-          {/* Smart Greeting Header */}
+          {/* Header Title replaced Good Afternoon greeting */}
           <View style={styles.header}>
-            <View style={styles.greetingRow}>
-              <View>
-                <Text style={styles.greetingSub}>{greetingText},</Text>
-                <Text style={styles.greetingMain}>{nickname} 👋</Text>
-              </View>
-              <View style={styles.avatarGlow}>
-                <Text style={styles.avatarText}>{nickname.substring(0, 2).toUpperCase()}</Text>
-              </View>
-            </View>
+            <Text style={[styles.title, { color: colors.textPrimary }]}>🥗 Diet Plan</Text>
+            <Text style={[styles.subtitle, { color: colors.textSecondary }]}>Personalized nutrition planner</Text>
 
             {/* Scrolling AI Coach Tip */}
-            <View style={styles.coachCard}>
+            <View style={[styles.coachCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
               <View style={styles.coachTitleRow}>
                 <Text style={styles.coachTitleIcon}>🤖</Text>
-                <Text style={styles.coachTitleText}>AI Nutrition Coach</Text>
+                <Text style={[styles.coachTitleText, { color: colors.primary }]}>AI Nutrition Coach</Text>
               </View>
-              <Text style={styles.coachMessage}>
+              <Text style={[styles.coachMessage, { color: colors.textSecondary }]}>
                 "Your {goal.replace('_', ' ')} plan is fully mapped for {WEEKDAYS.find(w => w.key === selectedDay)?.day}. Consuming oats at breakfast will secure slow carbohydrates."
               </Text>
             </View>
@@ -351,13 +327,15 @@ export default function PremiumDietPlanner() {
                 key={day.key}
                 style={[
                   styles.dayChip,
-                  selectedDay === day.key && styles.dayChipActive
+                  { backgroundColor: colors.surface, borderColor: colors.border },
+                  selectedDay === day.key && { backgroundColor: colors.primary + '18', borderColor: colors.primary }
                 ]}
                 onPress={() => setSelectedDay(day.key)}
               >
                 <Text style={[
                   styles.dayChipText,
-                  selectedDay === day.key && styles.dayChipTextActive
+                  { color: colors.textSecondary },
+                  selectedDay === day.key && { color: colors.primary, fontWeight: 'bold' }
                 ]}>
                   {day.label}
                 </Text>
@@ -366,8 +344,8 @@ export default function PremiumDietPlanner() {
           </ScrollView>
 
           {/* Daily Nutrition Analytics Card */}
-          <View style={styles.analyticsCard}>
-            <Text style={styles.analyticsTitle}>Daily Nutrition Target</Text>
+          <View style={[styles.analyticsCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
+            <Text style={[styles.analyticsTitle, { color: colors.textPrimary }]}>Daily Nutrition Target</Text>
             
             <View style={styles.analyticsRow}>
               {/* Svg circular chart */}
@@ -375,15 +353,15 @@ export default function PremiumDietPlanner() {
                 <Svg width={ringSize} height={ringSize}>
                   <Defs>
                     <LinearGradient id="cyber_emerald" x1="0%" y1="0%" x2="100%" y2="100%">
-                      <Stop offset="0%" stopColor="#00F29B" />
-                      <Stop offset="100%" stopColor="#10B981" />
+                      <Stop offset="0%" stopColor="#10B981" />
+                      <Stop offset="100%" stopColor="#059669" />
                     </LinearGradient>
                   </Defs>
                   <Circle
                     cx={ringSize / 2}
                     cy={ringSize / 2}
                     r={radius}
-                    stroke="rgba(0, 242, 155, 0.08)"
+                    stroke={colors.borderLight}
                     strokeWidth={strokeWidth - 2}
                     fill="transparent"
                   />
@@ -401,159 +379,159 @@ export default function PremiumDietPlanner() {
                   />
                 </Svg>
                 <View style={styles.radialChartInner}>
-                  <Text style={styles.radialValue}>{caloriePercent}%</Text>
-                  <Text style={styles.radialLabel}>kcal</Text>
+                  <Text style={[styles.radialValue, { color: colors.textPrimary }]}>{caloriePercent}%</Text>
+                  <Text style={[styles.radialLabel, { color: colors.textSecondary }]}>kcal</Text>
                 </View>
               </View>
 
               <View style={styles.analyticsMetaCol}>
                 <View style={styles.metaRowItem}>
-                  <View style={[styles.metaDot, { backgroundColor: CYBER_COLORS.glowGreen }]} />
-                  <Text style={styles.metaLabel}>Planned Cals: {totalCalories} kcal</Text>
+                  <View style={[styles.metaDot, { backgroundColor: '#10B981' }]} />
+                  <Text style={[styles.metaLabel, { color: colors.textPrimary }]}>Planned Cals: {totalCalories} kcal</Text>
                 </View>
-                <Text style={styles.targetMuted}>Target limit: {targetCalories} kcal</Text>
+                <Text style={[styles.targetMuted, { color: colors.textTertiary }]}>Target limit: {targetCalories} kcal</Text>
 
                 <View style={styles.metaRowItem}>
-                  <View style={[styles.metaDot, { backgroundColor: CYBER_COLORS.glowPurple }]} />
-                  <Text style={styles.metaLabel}>Planned Protein: {totalProtein}g</Text>
+                  <View style={[styles.metaDot, { backgroundColor: '#8B5CF6' }]} />
+                  <Text style={[styles.metaLabel, { color: colors.textPrimary }]}>Planned Protein: {totalProtein}g</Text>
                 </View>
-                <Text style={styles.targetMuted}>Target limit: {targetProtein}g</Text>
+                <Text style={[styles.targetMuted, { color: colors.textTertiary }]}>Target limit: {targetProtein}g</Text>
               </View>
             </View>
 
             {/* Gradient progress bars for macros */}
             <View style={styles.analyticsBarRow}>
               <View style={styles.barLabelRow}>
-                <Text style={styles.barText}>Carbs</Text>
-                <Text style={styles.barValText}>{totalCarbs}g / 280g</Text>
+                <Text style={[styles.barText, { color: colors.textSecondary }]}>Carbs</Text>
+                <Text style={[styles.barValText, { color: colors.textPrimary }]}>{totalCarbs}g / 280g</Text>
               </View>
-              <View style={styles.barOuter}>
+              <View style={[styles.barOuter, { backgroundColor: colors.borderLight }]}>
                 <View style={[styles.barInner, { width: `${Math.min(100, Math.round((totalCarbs / 280) * 100))}%`, backgroundColor: '#F59E0B' }]} />
               </View>
             </View>
 
             <View style={styles.analyticsBarRow}>
               <View style={styles.barLabelRow}>
-                <Text style={styles.barText}>Fats</Text>
-                <Text style={styles.barValText}>{totalFats}g / 70g</Text>
+                <Text style={[styles.barText, { color: colors.textSecondary }]}>Fats</Text>
+                <Text style={[styles.barValText, { color: colors.textPrimary }]}>{totalFats}g / 70g</Text>
               </View>
-              <View style={styles.barOuter}>
+              <View style={[styles.barOuter, { backgroundColor: colors.borderLight }]}>
                 <View style={[styles.barInner, { width: `${Math.min(100, Math.round((totalFats / 70) * 100))}%`, backgroundColor: '#EF4444' }]} />
               </View>
             </View>
           </View>
 
           {/* AI Recommendation Panel */}
-          <View style={styles.recommendationsCard}>
+          <View style={[styles.recommendationsCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
             <View style={styles.recHeader}>
-              <Text style={styles.recTitle}>✨ AI Goal Recommendations</Text>
+              <Text style={[styles.recTitle, { color: colors.accent }]}>✨ AI Goal Recommendations</Text>
               <TouchableOpacity onPress={fetchAIRecommendations} disabled={aiLoading}>
-                <Text style={styles.refreshBtnText}>{aiLoading ? 'Recalculating...' : 'Refresh'}</Text>
+                <Text style={[styles.refreshBtnText, { color: colors.accent }]}>{aiLoading ? 'Recalculating...' : 'Refresh'}</Text>
               </TouchableOpacity>
             </View>
-            <Text style={styles.recContentText}>{aiRecommendation}</Text>
+            <Text style={[styles.recContentText, { color: colors.textSecondary }]}>{aiRecommendation}</Text>
           </View>
 
           {/* Holographic Diet Plan Details Card */}
-          <View style={styles.dietPlanCard}>
+          <View style={[styles.dietPlanCard, { backgroundColor: colors.surface, borderColor: colors.border }]}>
             <View style={styles.cardHeader}>
-              <Text style={styles.goalBadge}>🎯 {goal.replace('_', ' ').toUpperCase()}</Text>
-              <TouchableOpacity style={styles.groceryBtn} onPress={() => setGroceryModalVisible(true)}>
-                <Text style={styles.groceryBtnText}>🛒 View Grocery List ({allIngredients.length})</Text>
+              <Text style={[styles.goalBadge, { color: '#10B981', backgroundColor: 'rgba(16, 185, 129, 0.1)' }]}>🎯 {goal.replace('_', ' ').toUpperCase()}</Text>
+              <TouchableOpacity style={[styles.groceryBtn, { backgroundColor: colors.accent + '15', borderColor: colors.accent }]} onPress={() => setGroceryModalVisible(true)}>
+                <Text style={[styles.groceryBtnText, { color: colors.accent }]}>🛒 View Grocery List ({allIngredients.length})</Text>
               </TouchableOpacity>
             </View>
 
-            <Text style={styles.timelineTitle}>Timeline & Meals</Text>
+            <Text style={[styles.timelineTitle, { color: colors.textPrimary }]}>Timeline & Meals</Text>
 
             {/* Expandable Meal Timeline */}
             <View style={styles.timelineList}>
               {meals.map((meal, index) => {
                 const isExpanded = expandedMeal === meal.id;
                 return (
-                  <View key={meal.id} style={styles.timelineItem}>
+                  <View key={meal.id} style={[styles.timelineItem, { borderColor: colors.border, backgroundColor: colors.surfaceAlt }]}>
                     <TouchableOpacity
-                      style={[styles.mealHeaderRow, isExpanded && styles.mealHeaderRowActive]}
+                      style={[styles.mealHeaderRow, isExpanded && { backgroundColor: colors.borderLight }]}
                       onPress={() => {
                         LayoutAnimation.configureNext(LayoutAnimation.Presets.spring);
                         setExpandedMeal(isExpanded ? null : meal.id);
                       }}
                     >
                       <View style={styles.timeWrap}>
-                        <Text style={styles.timeText}>{meal.time}</Text>
-                        <Text style={styles.typeText}>{meal.type}</Text>
+                        <Text style={[styles.timeText, { color: colors.primary }]}>{meal.time}</Text>
+                        <Text style={[styles.typeText, { color: colors.textTertiary }]}>{meal.type}</Text>
                       </View>
                       <View style={styles.mealTextWrap}>
-                        <Text style={styles.mealItemsText} numberOfLines={2}>{meal.items}</Text>
-                        <Text style={styles.mealMacrosSmall}>{meal.calories} kcal  •  {meal.protein}g protein</Text>
+                        <Text style={[styles.mealItemsText, { color: colors.textPrimary }]} numberOfLines={2}>{meal.items}</Text>
+                        <Text style={[styles.mealMacrosSmall, { color: colors.textSecondary }]}>{meal.calories} kcal  •  {meal.protein}g protein</Text>
                       </View>
-                      <Text style={styles.chevronIcon}>{isExpanded ? '▲' : '▼'}</Text>
+                      <Text style={[styles.chevronIcon, { color: colors.textTertiary }]}>{isExpanded ? '▲' : '▼'}</Text>
                     </TouchableOpacity>
 
                     {isExpanded && (
-                      <View style={styles.mealDetailPane}>
+                      <View style={[styles.mealDetailPane, { borderTopColor: colors.border }]}>
                         <View style={styles.paneMacroGrid}>
-                          <View style={styles.paneMacroCell}>
-                            <Text style={styles.paneMacroVal}>{meal.calories}</Text>
-                            <Text style={styles.paneMacroLabel}>Calories</Text>
+                          <View style={[styles.paneMacroCell, { backgroundColor: colors.surface }]}>
+                            <Text style={[styles.paneMacroVal, { color: colors.textPrimary }]}>{meal.calories}</Text>
+                            <Text style={[styles.paneMacroLabel, { color: colors.textTertiary }]}>Calories</Text>
                           </View>
-                          <View style={styles.paneMacroCell}>
-                            <Text style={styles.paneMacroVal}>{meal.protein}g</Text>
-                            <Text style={styles.paneMacroLabel}>Protein</Text>
+                          <View style={[styles.paneMacroCell, { backgroundColor: colors.surface }]}>
+                            <Text style={[styles.paneMacroVal, { color: colors.textPrimary }]}>{meal.protein}g</Text>
+                            <Text style={[styles.paneMacroLabel, { color: colors.textTertiary }]}>Protein</Text>
                           </View>
-                          <View style={styles.paneMacroCell}>
-                            <Text style={styles.paneMacroVal}>{meal.carbs}g</Text>
-                            <Text style={styles.paneMacroLabel}>Carbs</Text>
+                          <View style={[styles.paneMacroCell, { backgroundColor: colors.surface }]}>
+                            <Text style={[styles.paneMacroVal, { color: colors.textPrimary }]}>{meal.carbs}g</Text>
+                            <Text style={[styles.paneMacroLabel, { color: colors.textTertiary }]}>Carbs</Text>
                           </View>
-                          <View style={styles.paneMacroCell}>
-                            <Text style={styles.paneMacroVal}>{meal.fats}g</Text>
-                            <Text style={styles.paneMacroLabel}>Fats</Text>
+                          <View style={[styles.paneMacroCell, { backgroundColor: colors.surface }]}>
+                            <Text style={[styles.paneMacroVal, { color: colors.textPrimary }]}>{meal.fats}g</Text>
+                            <Text style={[styles.paneMacroLabel, { color: colors.textTertiary }]}>Fats</Text>
                           </View>
                         </View>
 
                         {/* Ingredients */}
-                        <Text style={styles.paneSectionTitle}>📦 Ingredients Required</Text>
+                        <Text style={[styles.paneSectionTitle, { color: colors.textPrimary }]}>📦 Ingredients Required</Text>
                         <View style={styles.ingredientsList}>
                           {meal.ingredients.map((ing, idx) => (
-                            <Text key={idx} style={styles.ingredientBullet}>• {ing}</Text>
+                            <Text key={idx} style={[styles.ingredientBullet, { color: colors.textSecondary }]}>• {ing}</Text>
                           ))}
                         </View>
 
                         {/* Guidance */}
-                        <View style={styles.guidanceBlock}>
-                          <Text style={styles.paneSectionTitle}>🕒 Preparation & Timing</Text>
-                          <Text style={styles.guidanceNote}>💡 {meal.tips}</Text>
+                        <View style={[styles.guidanceBlock, { backgroundColor: colors.surface }]}>
+                          <Text style={[styles.paneSectionTitle, { color: colors.textPrimary }]}>🕒 Preparation & Timing</Text>
+                          <Text style={[styles.guidanceNote, { color: colors.textSecondary }]}>💡 {meal.tips}</Text>
                           
                           <View style={styles.guidanceChipsRow}>
-                            <View style={styles.guidanceChip}>
-                              <Text style={styles.guidanceChipText}>🔥 Serving: {meal.maxQty}</Text>
+                            <View style={[styles.guidanceChip, { borderColor: colors.primary }]}>
+                              <Text style={[styles.guidanceChipText, { color: colors.primary }]}>🔥 Serving: {meal.maxQty}</Text>
                             </View>
-                            <View style={[styles.guidanceChip, { borderColor: '#8B5CF6' }]}>
-                              <Text style={[styles.guidanceChipText, { color: '#C084FC' }]}>🫃 Digestion: {meal.digestion}</Text>
+                            <View style={[styles.guidanceChip, { borderColor: colors.accent }]}>
+                              <Text style={[styles.guidanceChipText, { color: colors.accent }]}>🫃 Digestion: {meal.digestion}</Text>
                             </View>
                           </View>
                         </View>
 
-                        {/* Voice & Swaps controls */}
+                        {/* Swaps controls */}
                         <View style={styles.swapsActionRow}>
-                          <TouchableOpacity style={[styles.actionBtn, styles.swapMainBtn]} onPress={() => handleMealSwap(meal.id)}>
-                            <Text style={styles.actionBtnText}>🔄 Swap Meal</Text>
+                          <TouchableOpacity style={[styles.actionBtn, styles.swapMainBtn, { borderColor: colors.primary }]} onPress={() => handleMealSwap(meal.id)}>
+                            <Text style={[styles.actionBtnText, { color: colors.primary }]}>🔄 Swap Meal</Text>
                           </TouchableOpacity>
 
-                          <TouchableOpacity style={[styles.actionBtn, styles.swapVegBtn]} onPress={() => handleVegetarianSwap(meal.id)}>
-                            <Text style={styles.actionBtnText}>🌱 Make Veggie</Text>
+                          <TouchableOpacity style={[styles.actionBtn, styles.swapVegBtn, { borderColor: '#F59E0B' }]} onPress={() => handleVegetarianSwap(meal.id)}>
+                            <Text style={[styles.actionBtnText, { color: '#D97706' }]}>🌱 Make Veggie</Text>
                           </TouchableOpacity>
 
-                          <TouchableOpacity style={[styles.actionBtn, styles.swapBoostBtn]} onPress={() => handleProteinBoost(meal.id)}>
-                            <Text style={styles.actionBtnText}>⚡ Protein+</Text>
+                          <TouchableOpacity style={[styles.actionBtn, styles.swapBoostBtn, { borderColor: colors.accent }]} onPress={() => handleProteinBoost(meal.id)}>
+                            <Text style={[styles.actionBtnText, { color: colors.accent }]}>⚡ Protein+</Text>
                           </TouchableOpacity>
                         </View>
 
                         {/* Speech guide button */}
                         <TouchableOpacity
-                          style={styles.voiceGuideBtn}
+                          style={[styles.voiceGuideBtn, { backgroundColor: colors.surface }]}
                           onPress={() => speak(`For ${meal.type}, cook using ${meal.tips}. This contains ${meal.calories} calories and ${meal.protein} grams of protein.`, settings.ttsLanguage)}
                         >
-                          <Text style={styles.voiceGuideText}>🔊 Listen to Preparation Guide</Text>
+                          <Text style={[styles.voiceGuideText, { color: colors.textPrimary }]}>🔊 Listen to Preparation Guide</Text>
                         </TouchableOpacity>
                       </View>
                     )}
@@ -564,14 +542,14 @@ export default function PremiumDietPlanner() {
           </View>
 
           {/* Premium Food Explorer Section */}
-          <Text style={styles.explorerTitle}>🔍 Advanced Food Explorer</Text>
+          <Text style={[styles.explorerTitle, { color: colors.textPrimary }]}>🔍 Advanced Food Explorer</Text>
           
           <TextInput
-            style={styles.explorerSearchInput}
+            style={[styles.explorerSearchInput, { backgroundColor: colors.surface, color: colors.textPrimary, borderColor: colors.border }]}
             value={searchQuery}
             onChangeText={setSearchQuery}
             placeholder="Search healthy options..."
-            placeholderTextColor="#64748B"
+            placeholderTextColor={colors.textTertiary}
           />
 
           {/* Category Chips scroll view */}
@@ -581,13 +559,15 @@ export default function PremiumDietPlanner() {
                 key={cat}
                 style={[
                   styles.explorerChip,
-                  activeCategory === cat && styles.explorerChipActive
+                  { backgroundColor: colors.surface, borderColor: colors.border },
+                  activeCategory === cat && { backgroundColor: colors.primary, borderColor: colors.primary }
                 ]}
                 onPress={() => setActiveCategory(cat)}
               >
                 <Text style={[
                   styles.explorerChipText,
-                  activeCategory === cat && styles.explorerChipTextActive
+                  { color: colors.textSecondary },
+                  activeCategory === cat && { color: '#FFFFFF', fontWeight: 'bold' }
                 ]}>
                   {cat}
                 </Text>
@@ -615,15 +595,15 @@ export default function PremiumDietPlanner() {
         onRequestClose={() => setGroceryModalVisible(false)}
       >
         <View style={styles.modalBg}>
-          <View style={styles.modalSheetContainer}>
+          <View style={[styles.modalSheetContainer, { backgroundColor: colors.surface, borderColor: colors.border }]}>
             
             <View style={styles.modalHeaderRow}>
               <View>
-                <Text style={styles.modalTitle}>🛒 AI Grocery List</Text>
-                <Text style={styles.modalSubtitle}>Today's ingredients checklist</Text>
+                <Text style={[styles.modalTitle, { color: colors.textPrimary }]}>🛒 AI Grocery List</Text>
+                <Text style={[styles.modalSubtitle, { color: colors.textSecondary }]}>Today's ingredients checklist</Text>
               </View>
-              <TouchableOpacity style={styles.modalCloseBtn} onPress={() => setGroceryModalVisible(false)}>
-                <Text style={styles.modalCloseText}>Done</Text>
+              <TouchableOpacity style={[styles.modalCloseBtn, { backgroundColor: colors.primary + '15' }]} onPress={() => setGroceryModalVisible(false)}>
+                <Text style={[styles.modalCloseText, { color: colors.primary }]}>Done</Text>
               </TouchableOpacity>
             </View>
 
@@ -633,13 +613,13 @@ export default function PremiumDietPlanner() {
                 return (
                   <TouchableOpacity
                     key={idx}
-                    style={[styles.groceryCheckboxRow, checked && styles.groceryCheckboxRowChecked]}
+                    style={[styles.groceryCheckboxRow, checked && styles.groceryCheckboxRowChecked, { borderBottomColor: colors.borderLight }]}
                     onPress={() => toggleGroceryCheckbox(ing)}
                   >
-                    <View style={[styles.checkboxBox, checked && styles.checkboxBoxChecked]}>
-                      {checked && <Text style={styles.checkMark}>✓</Text>}
+                    <View style={[styles.checkboxBox, checked && { backgroundColor: colors.primary, borderColor: colors.primary }, { borderColor: colors.textTertiary }]}>
+                      {checked && <Text style={[styles.checkMark, { color: colors.surface }]}>✓</Text>}
                     </View>
-                    <Text style={[styles.groceryIngredientText, checked && styles.groceryIngredientTextChecked]}>
+                    <Text style={[styles.groceryIngredientText, checked && styles.groceryIngredientTextChecked, { color: colors.textPrimary }]}>
                       {ing}
                     </Text>
                   </TouchableOpacity>
@@ -647,7 +627,7 @@ export default function PremiumDietPlanner() {
               })}
             </ScrollView>
 
-            <TouchableOpacity style={styles.shareListBtn} onPress={() => Alert.alert('List Saved', 'Ingredients successfully exported to clipboard!')}>
+            <TouchableOpacity style={[styles.shareListBtn, { backgroundColor: colors.accent }]} onPress={() => Alert.alert('List Saved', 'Ingredients successfully exported to clipboard!')}>
               <Text style={styles.shareListBtnText}>Share Ingredients List</Text>
             </TouchableOpacity>
 
@@ -660,174 +640,155 @@ export default function PremiumDietPlanner() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: CYBER_COLORS.bg },
+  container: { flex: 1 },
   scroll: { padding: SPACING.lg, paddingBottom: 110 },
   
-  // Greeting Header
+  // Header Title
   header: { marginBottom: SPACING.lg },
-  greetingRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: SPACING.md },
-  greetingSub: { fontSize: TYPOGRAPHY.bodySmall, color: CYBER_COLORS.textMuted, fontFamily: TYPOGRAPHY.poppinsMedium },
-  greetingMain: { fontSize: TYPOGRAPHY.h2, color: CYBER_COLORS.textMain, fontFamily: TYPOGRAPHY.poppinsBold },
-  avatarGlow: {
-    width: 48, height: 48, borderRadius: 24, backgroundColor: '#00F29B20',
-    borderColor: '#00F29B', borderWidth: 1.5, alignItems: 'center', justifyContent: 'center',
-    shadowColor: '#00F29B', shadowOffset: { width: 0, height: 0 }, shadowOpacity: 0.8, shadowRadius: 10,
-  },
-  avatarText: { fontSize: 16, fontFamily: TYPOGRAPHY.poppinsBold, color: '#00F29B' },
+  title: { fontSize: TYPOGRAPHY.h2, fontFamily: TYPOGRAPHY.poppinsBold, marginBottom: 2 },
+  subtitle: { fontSize: TYPOGRAPHY.caption, fontFamily: TYPOGRAPHY.poppinsRegular, marginBottom: SPACING.lg },
   
   // AI Coach banner
   coachCard: {
-    backgroundColor: CYBER_COLORS.cardBg, borderColor: CYBER_COLORS.border, borderWidth: 1,
-    borderRadius: RADIUS.xl, padding: SPACING.md, shadowColor: '#00F29B',
-    shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.1, shadowRadius: 8,
+    borderWidth: 1, borderRadius: RADIUS.xl, padding: SPACING.md,
+    ...SHADOWS.sm,
   },
   coachTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 4 },
   coachTitleIcon: { fontSize: 18 },
-  coachTitleText: { fontSize: TYPOGRAPHY.bodySmall, fontFamily: TYPOGRAPHY.poppinsBold, color: CYBER_COLORS.glowGreen },
-  coachMessage: { fontSize: TYPOGRAPHY.caption, fontFamily: TYPOGRAPHY.poppinsMedium, color: CYBER_COLORS.textMain, lineHeight: 18, fontStyle: 'italic' },
+  coachTitleText: { fontSize: TYPOGRAPHY.bodySmall, fontFamily: TYPOGRAPHY.poppinsBold },
+  coachMessage: { fontSize: TYPOGRAPHY.caption, fontFamily: TYPOGRAPHY.poppinsMedium, lineHeight: 18, fontStyle: 'italic' },
 
   // Weekdays Selector
   weekdayScroll: { marginBottom: SPACING.lg },
   weekdayContent: { gap: SPACING.md, paddingRight: SPACING.lg },
   dayChip: {
-    width: 46, height: 46, borderRadius: 23, backgroundColor: 'rgba(13, 21, 39, 0.4)',
-    borderWidth: 1, borderColor: 'rgba(255, 255, 255, 0.08)', alignItems: 'center', justifyContent: 'center',
+    width: 46, height: 46, borderRadius: 23, borderWidth: 1,
+    alignItems: 'center', justifyContent: 'center', ...SHADOWS.sm,
   },
-  dayChipActive: {
-    backgroundColor: '#00F29B20', borderColor: '#00F29B',
-    shadowColor: '#00F29B', shadowOffset: { width: 0, height: 0 }, shadowOpacity: 0.5, shadowRadius: 8,
-  },
-  dayChipText: { fontSize: 12, fontFamily: TYPOGRAPHY.poppinsSemiBold, color: CYBER_COLORS.textMuted },
-  dayChipTextActive: { color: '#00F29B' },
+  dayChipText: { fontSize: 12, fontFamily: TYPOGRAPHY.poppinsSemiBold },
 
   // Daily target analytics
   analyticsCard: {
-    backgroundColor: CYBER_COLORS.cardBg, borderColor: 'rgba(255, 255, 255, 0.06)', borderWidth: 1,
-    borderRadius: RADIUS.xl, padding: SPACING.lg, marginBottom: SPACING.lg, ...SHADOWS.md,
+    borderWidth: 1, borderRadius: RADIUS.xl, padding: SPACING.lg, marginBottom: SPACING.lg,
+    ...SHADOWS.md,
   },
-  analyticsTitle: { fontSize: TYPOGRAPHY.body, fontFamily: TYPOGRAPHY.poppinsBold, color: CYBER_COLORS.textMain, marginBottom: SPACING.md },
+  analyticsTitle: { fontSize: TYPOGRAPHY.body, fontFamily: TYPOGRAPHY.poppinsBold, marginBottom: SPACING.md },
   analyticsRow: { flexDirection: 'row', alignItems: 'center', gap: SPACING.xxl, marginBottom: SPACING.lg },
   radialChartWrap: { position: 'relative', width: 100, height: 100, alignItems: 'center', justifyContent: 'center' },
   radialChartInner: { position: 'absolute', alignItems: 'center', justifyContent: 'center' },
-  radialValue: { fontSize: 18, fontFamily: TYPOGRAPHY.poppinsBold, color: CYBER_COLORS.textMain },
-  radialLabel: { fontSize: 8, fontFamily: TYPOGRAPHY.poppinsRegular, color: CYBER_COLORS.textMuted },
+  radialValue: { fontSize: 18, fontFamily: TYPOGRAPHY.poppinsBold },
+  radialLabel: { fontSize: 8, fontFamily: TYPOGRAPHY.poppinsRegular },
   analyticsMetaCol: { flex: 1, gap: 4 },
   metaRowItem: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   metaDot: { width: 8, height: 8, borderRadius: 4 },
-  metaLabel: { fontSize: TYPOGRAPHY.caption, fontFamily: TYPOGRAPHY.poppinsSemiBold, color: CYBER_COLORS.textMain },
-  targetMuted: { fontSize: 10, fontFamily: TYPOGRAPHY.poppinsRegular, color: CYBER_COLORS.textMuted, marginLeft: 14, marginBottom: 4 },
+  metaLabel: { fontSize: TYPOGRAPHY.caption, fontFamily: TYPOGRAPHY.poppinsSemiBold },
+  targetMuted: { fontSize: 10, fontFamily: TYPOGRAPHY.poppinsRegular, marginLeft: 14, marginBottom: 4 },
   
   // Linear macro details
   analyticsBarRow: { marginBottom: SPACING.md },
   barLabelRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 },
-  barText: { fontSize: TYPOGRAPHY.caption, fontFamily: TYPOGRAPHY.poppinsMedium, color: CYBER_COLORS.textMuted },
-  barValText: { fontSize: TYPOGRAPHY.caption, fontFamily: TYPOGRAPHY.poppinsSemiBold, color: CYBER_COLORS.textMain },
-  barOuter: { height: 6, borderRadius: 3, backgroundColor: 'rgba(255, 255, 255, 0.06)', overflow: 'hidden' },
+  barText: { fontSize: TYPOGRAPHY.caption, fontFamily: TYPOGRAPHY.poppinsMedium },
+  barValText: { fontSize: TYPOGRAPHY.caption, fontFamily: TYPOGRAPHY.poppinsSemiBold },
+  barOuter: { height: 6, borderRadius: 3, overflow: 'hidden' },
   barInner: { height: '100%', borderRadius: 3 },
 
   // Recommendation Card
   recommendationsCard: {
-    backgroundColor: CYBER_COLORS.cardBg, borderColor: 'rgba(139, 92, 246, 0.25)', borderWidth: 1,
-    borderRadius: RADIUS.xl, padding: SPACING.lg, marginBottom: SPACING.lg, ...SHADOWS.md,
+    borderWidth: 1, borderRadius: RADIUS.xl, padding: SPACING.lg, marginBottom: SPACING.lg,
+    ...SHADOWS.md,
   },
   recHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: SPACING.sm },
-  recTitle: { fontSize: TYPOGRAPHY.bodySmall, fontFamily: TYPOGRAPHY.poppinsBold, color: CYBER_COLORS.glowPurple },
-  refreshBtnText: { fontSize: TYPOGRAPHY.caption, fontFamily: TYPOGRAPHY.poppinsBold, color: CYBER_COLORS.glowPurple },
-  recContentText: { fontSize: TYPOGRAPHY.caption, fontFamily: TYPOGRAPHY.poppinsMedium, color: CYBER_COLORS.textMain, lineHeight: 18 },
+  recTitle: { fontSize: TYPOGRAPHY.bodySmall, fontFamily: TYPOGRAPHY.poppinsBold },
+  refreshBtnText: { fontSize: TYPOGRAPHY.caption, fontFamily: TYPOGRAPHY.poppinsBold },
+  recContentText: { fontSize: TYPOGRAPHY.caption, fontFamily: TYPOGRAPHY.poppinsMedium, lineHeight: 18 },
 
   // Interactive Diet Plan Card
   dietPlanCard: {
-    backgroundColor: CYBER_COLORS.cardBg, borderColor: 'rgba(255, 255, 255, 0.04)', borderWidth: 1,
-    borderRadius: RADIUS.xl, padding: SPACING.lg, marginBottom: SPACING.xl, ...SHADOWS.md,
+    borderWidth: 1, borderRadius: RADIUS.xl, padding: SPACING.lg, marginBottom: SPACING.xl,
+    ...SHADOWS.md,
   },
   cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: SPACING.md },
-  goalBadge: { fontSize: 10, fontFamily: TYPOGRAPHY.poppinsBold, color: '#00F29B', backgroundColor: 'rgba(0, 242, 155, 0.1)', paddingHorizontal: SPACING.md, paddingVertical: 4, borderRadius: RADIUS.full },
-  groceryBtn: { backgroundColor: '#8B5CF620', borderColor: '#8B5CF6', borderWidth: 1, paddingHorizontal: SPACING.md, paddingVertical: 4, borderRadius: RADIUS.xl },
-  groceryBtnText: { fontSize: 10, fontFamily: TYPOGRAPHY.poppinsBold, color: '#A78BFA' },
-  timelineTitle: { fontSize: TYPOGRAPHY.body, fontFamily: TYPOGRAPHY.poppinsBold, color: CYBER_COLORS.textMain, marginBottom: SPACING.lg },
+  goalBadge: { fontSize: 10, fontFamily: TYPOGRAPHY.poppinsBold, paddingHorizontal: SPACING.md, paddingVertical: 4, borderRadius: RADIUS.full },
+  groceryBtn: { borderWidth: 1, paddingHorizontal: SPACING.md, paddingVertical: 4, borderRadius: RADIUS.xl },
+  groceryBtnText: { fontSize: 10, fontFamily: TYPOGRAPHY.poppinsBold },
+  timelineTitle: { fontSize: TYPOGRAPHY.body, fontFamily: TYPOGRAPHY.poppinsBold, marginBottom: SPACING.lg },
   
   // Expandable timeline list
   timelineList: { gap: SPACING.md },
-  timelineItem: { borderRadius: RADIUS.xl, overflow: 'hidden', borderWidth: 1, borderColor: 'rgba(255, 255, 255, 0.04)', backgroundColor: 'rgba(13, 21, 39, 0.3)' },
+  timelineItem: { borderRadius: RADIUS.xl, overflow: 'hidden', borderWidth: 1, ...SHADOWS.sm },
   mealHeaderRow: { flexDirection: 'row', alignItems: 'center', padding: SPACING.md, gap: SPACING.sm },
-  mealHeaderRowActive: { backgroundColor: 'rgba(255, 255, 255, 0.02)' },
   timeWrap: { width: 70 },
-  timeText: { fontSize: 10, fontFamily: TYPOGRAPHY.poppinsBold, color: CYBER_COLORS.glowGreen },
-  typeText: { fontSize: 9, fontFamily: TYPOGRAPHY.poppinsRegular, color: CYBER_COLORS.textMuted },
+  timeText: { fontSize: 10, fontFamily: TYPOGRAPHY.poppinsBold },
+  typeText: { fontSize: 9, fontFamily: TYPOGRAPHY.poppinsRegular },
   mealTextWrap: { flex: 1, paddingRight: SPACING.sm },
-  mealItemsText: { fontSize: TYPOGRAPHY.caption, fontFamily: TYPOGRAPHY.poppinsSemiBold, color: CYBER_COLORS.textMain },
-  mealMacrosSmall: { fontSize: 8, fontFamily: TYPOGRAPHY.poppinsRegular, color: CYBER_COLORS.textMuted, marginTop: 2 },
-  chevronIcon: { fontSize: 10, color: CYBER_COLORS.textMuted },
+  mealItemsText: { fontSize: TYPOGRAPHY.caption, fontFamily: TYPOGRAPHY.poppinsSemiBold },
+  mealMacrosSmall: { fontSize: 8, fontFamily: TYPOGRAPHY.poppinsRegular, marginTop: 2 },
+  chevronIcon: { fontSize: 10 },
 
   // Expanded meal Pane
-  mealDetailPane: { padding: SPACING.md, borderTopWidth: 1, borderTopColor: 'rgba(255, 255, 255, 0.04)' },
+  mealDetailPane: { padding: SPACING.md, borderTopWidth: 1 },
   paneMacroGrid: { flexDirection: 'row', gap: SPACING.md, marginBottom: SPACING.lg, justifyContent: 'space-between' },
-  paneMacroCell: { flex: 1, backgroundColor: 'rgba(255, 255, 255, 0.02)', padding: SPACING.xs, borderRadius: RADIUS.lg, alignItems: 'center' },
-  paneMacroVal: { fontSize: 12, fontFamily: TYPOGRAPHY.poppinsBold, color: CYBER_COLORS.textMain },
-  paneMacroLabel: { fontSize: 8, fontFamily: TYPOGRAPHY.poppinsRegular, color: CYBER_COLORS.textMuted },
-  paneSectionTitle: { fontSize: TYPOGRAPHY.caption, fontFamily: TYPOGRAPHY.poppinsBold, color: CYBER_COLORS.textMain, marginBottom: 4 },
+  paneMacroCell: { flex: 1, padding: SPACING.xs, borderRadius: RADIUS.lg, alignItems: 'center', ...SHADOWS.sm },
+  paneMacroVal: { fontSize: 12, fontFamily: TYPOGRAPHY.poppinsBold },
+  paneMacroLabel: { fontSize: 8, fontFamily: TYPOGRAPHY.poppinsRegular },
+  paneSectionTitle: { fontSize: TYPOGRAPHY.caption, fontFamily: TYPOGRAPHY.poppinsBold, marginBottom: 4 },
   ingredientsList: { gap: 2, marginBottom: SPACING.md, paddingLeft: 6 },
-  ingredientBullet: { fontSize: TYPOGRAPHY.caption, fontFamily: TYPOGRAPHY.poppinsRegular, color: CYBER_COLORS.textMuted },
-  guidanceBlock: { backgroundColor: 'rgba(255, 255, 255, 0.02)', padding: SPACING.sm, borderRadius: RADIUS.xl, marginBottom: SPACING.md },
-  guidanceNote: { fontSize: TYPOGRAPHY.caption, fontFamily: TYPOGRAPHY.poppinsMedium, color: CYBER_COLORS.textMain, fontStyle: 'italic', lineHeight: 18 },
+  ingredientBullet: { fontSize: TYPOGRAPHY.caption, fontFamily: TYPOGRAPHY.poppinsRegular },
+  guidanceBlock: { padding: SPACING.sm, borderRadius: RADIUS.xl, marginBottom: SPACING.md, ...SHADOWS.sm },
+  guidanceNote: { fontSize: TYPOGRAPHY.caption, fontFamily: TYPOGRAPHY.poppinsMedium, fontStyle: 'italic', lineHeight: 18 },
   guidanceChipsRow: { flexDirection: 'row', gap: SPACING.sm, marginTop: SPACING.sm },
-  guidanceChip: { borderColor: '#10B981', borderWidth: 1, borderRadius: RADIUS.full, paddingHorizontal: SPACING.md, paddingVertical: 2 },
-  guidanceChipText: { fontSize: 8, fontFamily: TYPOGRAPHY.poppinsBold, color: '#34D399' },
+  guidanceChip: { borderWidth: 1, borderRadius: RADIUS.full, paddingHorizontal: SPACING.md, paddingVertical: 2 },
+  guidanceChipText: { fontSize: 8, fontFamily: TYPOGRAPHY.poppinsBold },
 
   // Action swap buttons
   swapsActionRow: { flexDirection: 'row', gap: SPACING.sm, marginTop: SPACING.sm },
-  actionBtn: { flex: 1, paddingVertical: 8, borderRadius: RADIUS.lg, alignItems: 'center' },
-  actionBtnText: { fontSize: 9, fontFamily: TYPOGRAPHY.poppinsBold, color: '#FFF' },
-  swapMainBtn: { backgroundColor: '#34D39930', borderColor: '#10B981', borderWidth: 1 },
-  swapVegBtn: { backgroundColor: '#F59E0B30', borderColor: '#F59E0B', borderWidth: 1 },
-  swapBoostBtn: { backgroundColor: '#8B5CF630', borderColor: '#8B5CF6', borderWidth: 1 },
+  actionBtn: { flex: 1, paddingVertical: 8, borderRadius: RADIUS.lg, alignItems: 'center', borderWidth: 1, backgroundColor: 'transparent' },
+  actionBtnText: { fontSize: 9, fontFamily: TYPOGRAPHY.poppinsBold },
+  swapMainBtn: {},
+  swapVegBtn: {},
+  swapBoostBtn: {},
   
-  voiceGuideBtn: { backgroundColor: 'rgba(255, 255, 255, 0.04)', borderRadius: RADIUS.xl, paddingVertical: 10, alignItems: 'center', marginTop: SPACING.md },
-  voiceGuideText: { fontSize: TYPOGRAPHY.caption, fontFamily: TYPOGRAPHY.poppinsBold, color: CYBER_COLORS.textMain },
+  voiceGuideBtn: { borderRadius: RADIUS.xl, paddingVertical: 10, alignItems: 'center', marginTop: SPACING.md, ...SHADOWS.sm },
+  voiceGuideText: { fontSize: TYPOGRAPHY.caption, fontFamily: TYPOGRAPHY.poppinsBold },
 
   // Explorer sections
-  explorerTitle: { fontSize: TYPOGRAPHY.h3, fontFamily: TYPOGRAPHY.poppinsBold, color: CYBER_COLORS.textMain, marginBottom: SPACING.sm },
+  explorerTitle: { fontSize: TYPOGRAPHY.h3, fontFamily: TYPOGRAPHY.poppinsBold, marginBottom: SPACING.sm },
   explorerSearchInput: {
-    backgroundColor: CYBER_COLORS.cardBg, borderColor: 'rgba(255, 255, 255, 0.04)', borderWidth: 1,
-    borderRadius: RADIUS.xl, paddingHorizontal: SPACING.lg, paddingVertical: SPACING.sm,
-    fontSize: TYPOGRAPHY.bodySmall, color: CYBER_COLORS.textMain, marginBottom: SPACING.md, ...SHADOWS.sm,
+    borderWidth: 1, borderRadius: RADIUS.xl, paddingHorizontal: SPACING.lg, paddingVertical: SPACING.sm,
+    fontSize: TYPOGRAPHY.bodySmall, marginBottom: SPACING.md, ...SHADOWS.sm,
   },
   chipScroll: { marginBottom: SPACING.md },
   explorerChip: {
     paddingHorizontal: SPACING.md, paddingVertical: SPACING.xs,
-    borderRadius: RADIUS.full, backgroundColor: 'rgba(255, 255, 255, 0.02)',
-    marginRight: SPACING.sm, borderWidth: 1, borderColor: 'rgba(255, 255, 255, 0.04)',
+    borderRadius: RADIUS.full, marginRight: SPACING.sm, borderWidth: 1,
   },
-  explorerChipActive: { backgroundColor: '#00F29B20', borderColor: '#00F29B' },
-  explorerChipText: { fontSize: TYPOGRAPHY.caption, color: CYBER_COLORS.textMuted, fontFamily: TYPOGRAPHY.poppinsMedium },
-  explorerChipTextActive: { color: '#00F29B', fontWeight: 'bold' },
+  explorerChipText: { fontSize: TYPOGRAPHY.caption, fontFamily: TYPOGRAPHY.poppinsMedium },
   explorerList: { gap: SPACING.md },
 
   // Grocery modal checklist sheet
-  modalBg: { flex: 1, backgroundColor: 'rgba(0, 0, 0, 0.8)', justifyContent: 'flex-end' },
+  modalBg: { flex: 1, backgroundColor: 'rgba(0, 0, 0, 0.4)', justifyContent: 'flex-end' },
   modalSheetContainer: {
-    backgroundColor: '#0D1527', borderTopLeftRadius: RADIUS.xxl, borderTopRightRadius: RADIUS.xxl,
-    padding: SPACING.lg, height: '70%', borderWidth: 1, borderColor: 'rgba(0, 242, 155, 0.1)',
+    borderTopLeftRadius: RADIUS.xxl, borderTopRightRadius: RADIUS.xxl,
+    padding: SPACING.lg, height: '70%', borderWidth: 1, ...SHADOWS.md,
   },
   modalHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: SPACING.lg },
-  modalTitle: { fontSize: TYPOGRAPHY.h3, fontFamily: TYPOGRAPHY.poppinsBold, color: CYBER_COLORS.textMain },
-  modalSubtitle: { fontSize: TYPOGRAPHY.caption, fontFamily: TYPOGRAPHY.poppinsRegular, color: CYBER_COLORS.textMuted },
-  modalCloseBtn: { backgroundColor: '#34D39920', paddingHorizontal: SPACING.lg, paddingVertical: 6, borderRadius: RADIUS.xl },
-  modalCloseText: { fontSize: TYPOGRAPHY.bodySmall, fontFamily: TYPOGRAPHY.poppinsBold, color: '#00F29B' },
+  modalTitle: { fontSize: TYPOGRAPHY.h3, fontFamily: TYPOGRAPHY.poppinsBold },
+  modalSubtitle: { fontSize: TYPOGRAPHY.caption, fontFamily: TYPOGRAPHY.poppinsRegular },
+  modalCloseBtn: { paddingHorizontal: SPACING.lg, paddingVertical: 6, borderRadius: RADIUS.xl },
+  modalCloseText: { fontSize: TYPOGRAPHY.bodySmall, fontFamily: TYPOGRAPHY.poppinsBold },
   modalScroll: { flex: 1 },
   groceryCheckboxRow: {
     flexDirection: 'row', alignItems: 'center', paddingVertical: 12,
-    borderBottomWidth: 1, borderBottomColor: 'rgba(255, 255, 255, 0.04)', gap: SPACING.md,
+    borderBottomWidth: 1, gap: SPACING.md,
   },
   groceryCheckboxRowChecked: { opacity: 0.5 },
   checkboxBox: {
     width: 22, height: 22, borderRadius: 6, borderWidth: 1.5,
-    borderColor: CYBER_COLORS.textMuted, alignItems: 'center', justifyContent: 'center',
+    alignItems: 'center', justifyContent: 'center',
   },
-  checkboxBoxChecked: { backgroundColor: '#00F29B', borderColor: '#00F29B' },
-  checkMark: { fontSize: 14, color: '#080C14', fontWeight: 'bold' },
-  groceryIngredientText: { fontSize: TYPOGRAPHY.bodySmall, fontFamily: TYPOGRAPHY.poppinsMedium, color: CYBER_COLORS.textMain },
+  checkMark: { fontSize: 14, fontWeight: 'bold' },
+  groceryIngredientText: { fontSize: TYPOGRAPHY.bodySmall, fontFamily: TYPOGRAPHY.poppinsMedium },
   groceryIngredientTextChecked: { textDecorationLine: 'line-through' },
-  shareListBtn: { backgroundColor: '#8B5CF6', paddingVertical: 14, borderRadius: RADIUS.xl, alignItems: 'center', marginTop: SPACING.md, ...SHADOWS.md },
+  shareListBtn: { paddingVertical: 14, borderRadius: RADIUS.xl, alignItems: 'center', marginTop: SPACING.md, ...SHADOWS.md },
   shareListBtnText: { fontSize: TYPOGRAPHY.body, fontFamily: TYPOGRAPHY.poppinsBold, color: '#FFF' },
 });

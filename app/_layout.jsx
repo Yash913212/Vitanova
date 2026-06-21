@@ -7,7 +7,36 @@ import React, { useEffect } from 'react';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { Slot, useRouter, useSegments } from 'expo-router';
-import { View, ActivityIndicator, StyleSheet } from 'react-native';
+import { View, ActivityIndicator, StyleSheet, Alert, Platform } from 'react-native';
+
+if (Platform.OS === 'web') {
+  Alert.alert = (title, message, buttons) => {
+    const formattedMessage = message ? `${title}\n\n${message}` : title;
+    if (buttons && buttons.length > 0) {
+      if (buttons.length > 1) {
+        const confirmButton = buttons.find(b => b.style !== 'cancel') || buttons[0];
+        const cancelButton = buttons.find(b => b.style === 'cancel');
+        const result = window.confirm(formattedMessage);
+        if (result) {
+          if (confirmButton && typeof confirmButton.onPress === 'function') {
+            confirmButton.onPress();
+          }
+        } else {
+          if (cancelButton && typeof cancelButton.onPress === 'function') {
+            cancelButton.onPress();
+          }
+        }
+      } else {
+        window.alert(formattedMessage);
+        if (buttons[0] && typeof buttons[0].onPress === 'function') {
+          buttons[0].onPress();
+        }
+      }
+    } else {
+      window.alert(formattedMessage);
+    }
+  };
+}
 import { AuthProvider, useAuth } from '../src/providers/AuthProvider';
 import { SettingsProvider } from '../src/providers/SettingsProvider';
 import { ProfileProvider, useProfile } from '../src/providers/ProfileProvider';

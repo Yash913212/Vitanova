@@ -1,10 +1,27 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { createClient } from '@supabase/supabase-js';
 
+// Helper to dynamically get the Supabase AsyncStorage/localStorage key based on the project URL
+const getStorageKey = () => {
+  const url = process.env.EXPO_PUBLIC_SUPABASE_URL || '';
+  const match = url.match(/https:\/\/([^.]+)\.supabase\.co/);
+  const projectId = match ? match[1] : '';
+  return projectId ? `sb-${projectId}-auth-token` : 'supabase.auth.token';
+};
+
 // Custom fetch wrapper to handle connection/DNS errors (e.g. when offline or when a project is paused)
 const supabaseFetch = async (url, options) => {
   try {
-    return await fetch(url, options);
+    const response = await fetch(url, options);
+    
+    // If the server returns a non-JSON response (like a paused HTML page) for auth/api routes,
+    // or returns a 5xx error, we treat it as a service interruption and trigger the fallback.
+    const contentType = response.headers.get('content-type') || '';
+    if (!response.ok && (response.status >= 500 || (url.includes('/auth/v1/') && !contentType.includes('application/json')))) {
+      throw new TypeError('Network request failed');
+    }
+    
+    return response;
   } catch (error) {
     if (
       error instanceof TypeError ||
@@ -16,10 +33,12 @@ const supabaseFetch = async (url, options) => {
       // to prevent GoTrue from spamming console.errors and throwing unhandled rejections.
       if (url.includes('/auth/v1/token') && url.includes('grant_type=refresh_token')) {
         try {
-          const storageKey = 'supabase.auth.token';
+          const storageKey = getStorageKey();
           const storedSessionStr = await AsyncStorage.getItem(storageKey);
           if (storedSessionStr) {
-            const session = JSON.parse(storedSessionStr);
+            const storedObj = JSON.parse(storedSessionStr);
+            // Supabase wraps the session inside a currentSession object in storage
+            const session = storedObj?.currentSession || storedObj;
             if (session && session.access_token) {
               console.log('[Supabase Offline] Mocking successful token refresh using cached session.');
               // Reset the expires_in timer so the client stops attempting to refresh for a while
